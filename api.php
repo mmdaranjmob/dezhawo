@@ -1,0 +1,63 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__ . '/app/bootstrap.php';
+require_once __DIR__ . '/app/Auth.php';
+require_once __DIR__ . '/app/Sms.php';
+require_once __DIR__ . '/app/Commerce.php';
+require_once __DIR__ . '/app/Payments.php';
+require_once __DIR__ . '/app/Admin.php';
+
+$action = is_string($_GET['action'] ?? null) ? $_GET['action'] : '';
+try {
+    if ($action === 'bootstrap') {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') {
+            app_error('اطلاعات فروشگاه با درخواست GET دریافت می‌شود.', 405);
+        }
+        config();
+        $owner = db()->query("SELECT id FROM users WHERE role_id='owner' LIMIT 1")->fetch();
+        if (!$owner) {
+            respond(['configured' => false, 'message' => 'دیتابیس آماده است؛ مدیر فروشگاه را از صفحهٔ install.php ایجاد کنید.']);
+        }
+        respond(bootstrap_data());
+    }
+    $allowed = [
+        'auth.requestOtp', 'auth.verifyOtp', 'auth.adminLogin', 'auth.logout',
+        'cart.add', 'cart.set', 'reservation.create', 'reservation.release', 'order.checkout', 'order.resume',
+        'pos.sale', 'inventory.adjust', 'order.status', 'order.tracking',
+        'product.save', 'product.enabled', 'variant.enabled', 'product.delete', 'settings.save',
+        'shipping.save', 'shipping.disable', 'role.save', 'role.delete',
+        'user.role', 'user.enabled', 'user.password', 'user.create',
+        'ticket.create', 'ticket.reply', 'ticket.status',
+    ];
+    if (!in_array($action, $allowed, true)) {
+        app_error('این مسیر در فروشگاه وجود ندارد.', 404);
+    }
+    require_post();
+    check_csrf();
+    $owner = db()->query("SELECT id FROM users WHERE role_id='owner' LIMIT 1")->fetch();
+    if (!$owner) {
+        app_error('ابتدا مدیر فروشگاه را از نصب‌کننده ایجاد کنید.', 503);
+    }
+    $input = body();
+    if (str_starts_with($action, 'auth.')) {
+        respond(auth_action($action, $input));
+    }
+    if (in_array($action, ['cart.add', 'cart.set', 'reservation.create', 'reservation.release',
+        'order.checkout', 'order.resume', 'pos.sale', 'inventory.adjust', 'order.status', 'order.tracking'], true)) {
+        respond(commerce_action($action, $input));
+    }
+    respond(admin_action($action, $input));
+} catch (AppError $error) {
+    if ($action === 'bootstrap' && $error->status === 503) {
+        respond(['configured' => false, 'message' => $error->getMessage()]);
+    }
+    respond($error->getMessage(), $error->status);
+} catch (Throwable $error) {
+    // Do not log exception messages: DSNs, query parameters and provider URLs can
+    // contain private connection details. The error type/code is enough to diagnose.
+    error_log('DEZHAWO API failure: ' . get_class($error) . ' code=' . $error->getCode());
+    if ($action === 'bootstrap') {
+        respond(['configured' => false, 'message' => 'اتصال دیتابیس یا جدول‌ها آماده نیست. تنظیمات اتصال و واردکردن database/schema.sql را طبق راهنما بررسی کنید.']);
+    }
+    respond('انجام عملیات موقتاً ممکن نیست؛ دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.', 500);
+}

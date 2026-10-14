@@ -1,0 +1,12 @@
+/app/config.php
+/.env
+/.local-dezhawo/
+/storage/*
+!/storage/.htaccess
+!/storage/.gitkeep
+/dist/
+*.log
+*.sql.gz
+.DS_Store
+__pycache__/
+*.py[cod]
