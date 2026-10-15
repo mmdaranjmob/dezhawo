@@ -47,8 +47,7 @@ def main():
     else:
         values = {key: secrets.token_hex(32) for key in
                   ['database_password', 'root_password', 'app_key', 'installation_key']}
-        values.update(db_name='dezhawo_qa', owner_phone='09121112233',
-                      owner_password='QA!'+secrets.token_hex(12)+'Aa9')
+        values.update(db_name='dezhawo_qa', owner_phone='09121112233')
         secret_path.write_text(json.dumps(values))
         secret_path.chmod(0o600)
     assert values['db_name'] == 'dezhawo_qa', 'Unexpected private DB name'

@@ -75,7 +75,7 @@ try {
                 $status = 403;
                 throw new InstallationValidation('کلید نصب صحیح نیست؛ کلیدی را وارد کنید که در app/config.php تنظیم کرده‌اید.');
             }
-            foreach (['name', 'phone', 'password', 'password_confirmation'] as $field) {
+            foreach (['name', 'phone'] as $field) {
                 if (!isset($_POST[$field]) || !is_string($_POST[$field])) {
                     throw new InstallationValidation('تمام فیلدهای ساخت مدیر را تکمیل کنید.');
                 }
@@ -89,21 +89,7 @@ try {
             if (!preg_match('/^09[0-9]{9}$/D', $safePhone)) {
                 throw new InstallationValidation('شماره موبایل ایران را به شکل ۰۹ و در مجموع ۱۱ رقم وارد کنید.');
             }
-            $password = $_POST['password'];
-            if (!hash_equals($password, $_POST['password_confirmation'])) {
-                throw new InstallationValidation('رمز عبور و تکرار آن یکسان نیستند.');
-            }
-            if (strlen($password) < 12 || strlen($password) > 72
-                || !preg_match('/[a-z]/', $password) || !preg_match('/[A-Z]/', $password)
-                || !preg_match('/[0-9]/', $password) || !preg_match('/[^A-Za-z0-9]/', $password)
-                || preg_match('/[\x00-\x1F\x7F]/', $password)) {
-                throw new InstallationValidation('رمز باید ۱۲ تا ۷۲ بایت و شامل حرف انگلیسی بزرگ، حرف کوچک، عدد و علامت باشد.');
-            }
-            $passwordHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
-            unset($password, $_POST['password'], $_POST['password_confirmation'], $_POST['installation_key']);
-            if ($passwordHash === false) {
-                throw new InstallationValidation('ساخت رمز عبور امکان‌پذیر نشد؛ دوباره تلاش کنید.');
-            }
+            unset($_POST['installation_key']);
             $pdo->beginTransaction();
             try {
                 // Serialize simultaneous installation requests around a permanent seed row.
@@ -118,8 +104,8 @@ try {
                     throw new InstallationValidation('نصب قبلاً انجام شده است. ساخت مدیر دوم از این صفحه مسدود است.');
                 }
                 $ownerId = uid('usr');
-                $insert = $pdo->prepare('INSERT INTO users (id, name, phone, password_hash, role_id, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, UTC_TIMESTAMP(), UTC_TIMESTAMP())');
-                $insert->execute([$ownerId, $safeName, $safePhone, $passwordHash, 'owner']);
+                $insert = $pdo->prepare('INSERT INTO users (id, name, phone, password_hash, role_id, enabled, created_at, updated_at) VALUES (?, ?, ?, NULL, ?, 1, UTC_TIMESTAMP(), UTC_TIMESTAMP())');
+                $insert->execute([$ownerId, $safeName, $safePhone, 'owner']);
                 $lock = $pdo->prepare("INSERT INTO settings (name, value, updated_at) VALUES ('installation_complete', 'true', UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE value = 'true', updated_at = UTC_TIMESTAMP()");
                 $lock->execute();
                 $log = $pdo->prepare('INSERT INTO audit_logs (id, user_id, user_name, action, target_id, details_json, created_at) VALUES (?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())');
@@ -128,7 +114,7 @@ try {
                 $success = true;
                 $ready = false;
                 $status = 201;
-                $message = 'مدیر اصلی ساخته شد و نصب قفل شد. اکنون از صفحهٔ فروشگاه وارد پنل مدیریت شوید.';
+                $message = 'مدیر اصلی ساخته شد و نصب قفل شد. از ورود مشترک فروشگاه با همین شماره و کد تأیید پیامکی وارد شوید.';
                 session_regenerate_id(true);
             } catch (Throwable $failure) {
                 if ($pdo->inTransaction()) {
@@ -181,7 +167,7 @@ header('Referrer-Policy: no-referrer');
     <p>این صفحه دوباره مدیر نمی‌سازد، حتی اگر فایل تنظیمات تغییر کند. پس از نصب، فایل <code>install.php</code> را از هاست حذف کنید.</p>
     <a class="button" href="./">ورود به فروشگاه</a>
   <?php elseif ($ready): ?>
-    <p>ساخت مدیر اصلی فقط یک‌بار انجام می‌شود. این ورود با شماره موبایل و رمز عبور است؛ ورود مشتریان با پیامک جداگانه تنظیم می‌شود.</p>
+    <p>ساخت مدیر اصلی فقط یک‌بار انجام می‌شود. شماره‌ای را وارد کنید که پیامک آن در اختیار خودتان است؛ مدیر، کارکنان و مشتریان همگی از ورود مشترک با کد تأیید پیامکی استفاده می‌کنند. پیش از ورود، سرویس پیامک را در تنظیمات خصوصی هاست فعال کنید.</p>
     <form method="post" action="install.php" autocomplete="off">
       <input type="hidden" name="csrf" value="<?= installation_escape($csrf) ?>">
       <label for="installation-key">کلید نصب از تنظیمات خصوصی هاست</label>
@@ -190,11 +176,6 @@ header('Referrer-Policy: no-referrer');
       <input id="owner-name" name="name" value="<?= installation_escape($safeName) ?>" required minlength="2" maxlength="100" autocomplete="name">
       <label for="owner-phone">شماره موبایل مدیر</label>
       <input id="owner-phone" name="phone" value="<?= installation_escape($safePhone) ?>" type="tel" required maxlength="11" inputmode="numeric" placeholder="09xxxxxxxxx" dir="ltr" autocomplete="tel">
-      <label for="owner-password">رمز عبور مدیر</label>
-      <input id="owner-password" name="password" type="password" required minlength="12" maxlength="72" dir="ltr" autocomplete="new-password" aria-describedby="password-help">
-      <small id="password-help">۱۲ تا ۷۲ بایت؛ شامل حروف انگلیسی بزرگ و کوچک، عدد و علامت.</small>
-      <label for="owner-confirmation">تکرار رمز عبور</label>
-      <input id="owner-confirmation" name="password_confirmation" type="password" required minlength="12" maxlength="72" dir="ltr" autocomplete="new-password">
       <button type="submit">ساخت مدیر و تکمیل نصب</button>
     </form>
   <?php else: ?>
@@ -203,7 +184,7 @@ header('Referrer-Policy: no-referrer');
       <li>PHP ۸٫۲ یا بالاتر و افزونه‌های <code>pdo_mysql</code>، <code>curl</code> و <code>mbstring</code> را فعال و گواهی SSL را نصب کنید.</li>
       <li>یک دیتابیس خالی و کاربر اختصاصی بسازید و کاربر را با دسترسی کامل به همان دیتابیس متصل کنید.</li>
       <li>فایل <code>database/schema.sql</code> را با phpMyAdmin در دیتابیس جدید وارد کنید.</li>
-      <li>از <code>app/config.example.php</code> یک کپی با نام <code>app/config.php</code> بسازید؛ اطلاعات دیتابیس، آدرس HTTPS و دو کلید تصادفی مستقل را تنظیم کنید.</li>
+      <li>از <code>app/config.example.php</code> یک کپی با نام <code>app/config.php</code> بسازید؛ اطلاعات دیتابیس، آدرس HTTPS، دو کلید تصادفی مستقل و سرویس پیامک را تنظیم کنید.</li>
       <li>این صفحه را با HTTPS دوباره باز کنید. راهنمای کامل در فایل <code>README.md</code> داخل پروژه است.</li>
     </ol>
     <p>کلیدها و رمز دیتابیس فقط روی هاست نگهداری شوند. این نصب هیچ نام کاربری یا رمز پیش‌فرضی ندارد.</p>

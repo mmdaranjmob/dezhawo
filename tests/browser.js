@@ -5,12 +5,25 @@ const {chromium} = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const {spawnSync} = require('node:child_process');
 
 const base = process.env.DEZHAWO_QA_URL || 'http://127.0.0.1:8080';
 const secretsPath = process.env.DEZHAWO_QA_SECRETS;
 const outboxPath = process.env.DEZHAWO_QA_OUTBOX;
 if (!secretsPath || !outboxPath) throw new Error('Provide private testing fixture paths in DEZHAWO_QA_SECRETS and DEZHAWO_QA_OUTBOX.');
 const fixture = JSON.parse(fs.readFileSync(secretsPath,'utf8'));
+assert.ok(['localhost','127.0.0.1','[::1]'].includes(new URL(base).hostname),'Browser QA requires a loopback URL.');
+assert.ok(fixture.db_name?.endsWith('_qa'),'Browser QA requires a disposable *_qa database.');
+function qaSql(statement) {
+  const result=spawnSync('docker',['exec','-i',process.env.DEZHAWO_QA_DB_CONTAINER || 'dezhawo-qa-db','sh','-c',
+    'MYSQL_PWD="$MARIADB_PASSWORD" mariadb -u "$MARIADB_USER" --database="$MARIADB_DATABASE" -N -B'],
+    {input:statement,encoding:'utf8'});
+  assert.equal(result.status,0,'Disposable QA database query failed; private details withheld.');
+  return result.stdout.trim();
+}
+assert.equal(qaSql('SELECT DATABASE();'),fixture.db_name,'Private fixtures do not match the QA database.');
+// Reset only the isolated QA rate-limit table, allowing immediate sequential runs.
+qaSql('DELETE FROM rate_limits;');
 const suffix = Date.now().toString(36);
 const productTitle = 'uiqa_' + suffix;
 const customerPhone = '0999' + String(Date.now()).slice(-7);
@@ -26,12 +39,17 @@ async function tab(page, name) {
 }
 async function waitModalClosed(page) { await page.locator('#modalDialog').waitFor({state:'hidden'}); }
 async function staffLogin(page) {
-  await page.locator('[data-action="admin"]').last().click();
-  const f = page.locator('#staffLoginForm');
+  await page.locator('.profile-btn[data-action="account"]').click();
+  let f = page.locator('#loginPhoneForm');
   await f.locator('[name="phone"]').fill(fixture.owner_phone);
-  await f.locator('[name="password"]').fill(fixture.owner_password);
   await f.locator('[type="submit"]').click();
+  await page.locator('#loginCodeForm').waitFor();
+  f=page.locator('#loginCodeForm');
+  await f.locator('[name="code"]').fill(testCode(fixture.owner_phone));
+  await f.locator('[type="submit"]').click();
+  await page.locator('#modalContent [data-action="admin"]').click();
   await page.locator('#adminView').waitFor({state:'visible'});
+  assert.equal(await page.evaluate(() => DZ.state.currentUser?.roleId),'owner');
 }
 function testCode(phone) {
   const entries = fs.readdirSync(outboxPath).filter(x => x.endsWith('.json')).map(name => {
@@ -51,17 +69,19 @@ function testCode(phone) {
       await loaded(page);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),false,name+' horizontal overflow');
       assert.equal(await page.locator('#runtimeStatus').isVisible(),false);
-      await page.locator('[data-action="admin"]').last().click();
-      assert.equal(await page.locator('#staffLoginForm').isVisible(),true);
+      assert.equal(await page.locator('[data-management-entry]:visible').count(),0);
+      await page.locator('.profile-btn[data-action="account"]').click();
+      assert.equal(await page.locator('#loginPhoneForm').isVisible(),true);
+      assert.equal(await page.locator('#staffLoginForm,input[type="password"]').count(),0);
       assert.equal(await page.locator('#adminView').isVisible(),false);
       await page.locator('[data-action="close-modal"]').click();
       assert.equal(await page.evaluate(() => localStorage.getItem('dezhawo-demo-v1')),null);
-      await context.close();pass(name+' responsive layout and staff authentication gate');
+      await context.close();pass(name+' responsive layout and shared OTP login gate');
     }
 
     const staffContext = await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
     const staff = await staffContext.newPage();staff.on('pageerror',e => errors.push(e.message));
-    await loaded(staff);await staffLogin(staff);pass('actual staff password authentication');
+    await loaded(staff);await staffLogin(staff);pass('owner uses the same mobile OTP form and opens authorized management');
     await tab(staff,'products');await staff.locator('[data-admin-action="product-new"]').click();
     let f = staff.locator('[data-admin-form="product"]');
     await f.locator('[name="title"]').fill(productTitle);
@@ -105,13 +125,16 @@ function testCode(phone) {
     await loaded(customer);assert.equal(await customer.evaluate(() => DZ.cartCount()),1);
     pass('other device sees POS stock and server cart survives reload');
 
-    await customer.locator('[data-action="account"]').first().click();
+    await customer.locator('.profile-btn[data-action="account"]').click();
     f = customer.locator('#loginPhoneForm');await f.locator('[name="phone"]').fill(customerPhone);
     await f.locator('[type="submit"]').click();await customer.locator('#loginCodeForm').waitFor();
     f = customer.locator('#loginCodeForm');await f.locator('[name="code"]').fill(testCode(customerPhone));
     await f.locator('[type="submit"]').click();
     await customer.waitForFunction(phone => DZ.state.currentUser?.phone === phone,customerPhone);
     assert.equal(await customer.evaluate(() => DZ.state.currentUser.permissions.length),0);
+    assert.equal(await customer.locator('[data-management-entry]:visible,#modalContent [data-action="admin"]').count(),0);
+    await customer.evaluate(() => UI.go('admin'));
+    assert.equal(await customer.locator('#adminView').isVisible(),false);
     await customer.locator('[data-action="account-tab"][data-tab="tickets"]').click();
     await customer.locator('[data-action="ticket-new"]').click();
     f = customer.locator('#ticketForm');await f.locator('[name="subject"]').fill(productTitle+' پشتیبانی');

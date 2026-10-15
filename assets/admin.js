@@ -119,7 +119,7 @@
     if(!can('roles.edit')&&!can('users.edit'))return denied();
     const roles=D().state.roles||[],users=D().state.users||[];
     const roleCards=can('roles.edit')?`<div class="admin-roles-grid">${roles.map(r=>`<div class="admin-role-card"><div>${ic('shield')}<h3>${e(r.name)}</h3></div><p>${n((r.permissions||[]).length)} دسترسی${can('users.edit')?' · '+n(users.filter(u=>u.roleId===r.id).length)+' کاربر':''}</p><div class="admin-role-preview">${(r.permissions||[]).slice(0,3).map(x=>pill(e(permissionLabels[x]||x))).join('')}${(r.permissions||[]).length>3?pill('+'+n(r.permissions.length-3)):''}</div><div class="admin-row-actions">${action('role-edit',r.id==='owner'?'مشاهده':'ویرایش',`data-id="${e(r.id)}"`,'admin-link','edit')}${!['owner','customer'].includes(r.id)?action('role-delete','حذف نقش',`data-id="${e(r.id)}"`,'admin-link admin-danger','trash'):pill(r.id==='owner'?'مدیر اصلی محفوظ':'نقش پایه محفوظ','pill-green')}</div></div>`).join('')}</div>`:'';
-    const usersTable=can('users.edit')?card('تخصیص نقش به کاربران',`<div class="table-wrap"><table class="data-table"><thead><tr><th>کاربر</th><th>شماره موبایل</th><th>نقش</th><th>تغییر</th></tr></thead><tbody>${users.map(user=>`<tr><td><strong>${e(user.name||'مشتری')}</strong>${D().state.currentUser===user.id||D().state.currentUser?.id===user.id?`<small>حساب فعلی</small>`:''}</td><td dir="ltr">${e(user.phone||'—')}</td><td>${e(roles.find(r=>r.id===user.roleId)?.name||'مشتری')}${user.enabled===false?'<small>حساب غیرفعال</small>':''}</td><td><div class="admin-row-actions">${action('user-role','تغییر نقش',`data-id="${e(user.id)}"`,'admin-link','edit')}${action('user-toggle',user.enabled===false?'فعال‌سازی':'غیرفعال',`data-id="${e(user.id)}"`,'admin-link')}${user.roleId!=='customer'?action('user-password','تعیین رمز',`data-id="${e(user.id)}"`,'admin-link'):''}</div></td></tr>`).join('')}</tbody></table></div>`):'';
+    const usersTable=can('users.edit')?card('تخصیص نقش به کاربران',`<div class="table-wrap"><table class="data-table"><thead><tr><th>کاربر</th><th>شماره موبایل</th><th>نقش</th><th>تغییر</th></tr></thead><tbody>${users.map(user=>`<tr><td><strong>${e(user.name||'مشتری')}</strong>${D().state.currentUser===user.id||D().state.currentUser?.id===user.id?`<small>حساب فعلی</small>`:''}</td><td dir="ltr">${e(user.phone||'—')}</td><td>${e(roles.find(r=>r.id===user.roleId)?.name||'مشتری')}${user.enabled===false?'<small>حساب غیرفعال</small>':''}</td><td><div class="admin-row-actions">${action('user-role','تغییر نقش',`data-id="${e(user.id)}"`,'admin-link','edit')}${action('user-toggle',user.enabled===false?'فعال‌سازی':'غیرفعال',`data-id="${e(user.id)}"`,'admin-link')}</div></td></tr>`).join('')}</tbody></table></div>`):'';
     return `<div class="admin-toolbar"><p>دسترسی‌ها برای هر عملیات جدا هستند و در خود سیستم بررسی می‌شوند.</p><div class="admin-row-actions">${can('users.edit')?action('user-new','افزودن همکار','','btn btn-light','plus'):''}${can('roles.edit')?action('role-new','ایجاد نقش','','btn btn-dark','plus'):''}</div></div>${roleCards}${usersTable}<div class="admin-demo-note">${ic('shield')}نقش مدیر اصلی حذف نمی‌شود؛ حذف نقش‌های دیگر نیازمند تعیین نقش جایگزین است.</div>`;
   }
   function roleForm(id){
@@ -139,11 +139,7 @@
   }
   function userCreateForm(){
     ensure('users.edit');const roles=D().state.roles.filter(r=>r.id!=='customer'&&(r.id!=='owner'||D().state.currentUser.roleId==='owner'));
-    form('افزودن همکار',`${field('نام و نام خانوادگی','name','','text','required maxlength="100"')}${field('شماره موبایل','phone','','tel','required dir="ltr" maxlength="15" autocomplete="off"')}${select('نقش','roleId',roles.map(r=>`<option value="${e(r.id)}">${e(r.name)}</option>`).join(''),'required')}${field('رمز ورود کارکنان','password','','password','required minlength="12" maxlength="128" autocomplete="new-password"')}<p class="admin-span-2 password-note">رمز حداقل ۱۲ کاراکتر باشد. کارکنان از گزینهٔ ورود کارکنان با شماره و رمز وارد می‌شوند.</p>`,'user-create','','ایجاد حساب');
-  }
-  function userPasswordForm(id){
-    ensure('users.edit');const user=D().state.users.find(u=>u.id===id);if(!user)throw new Error('کاربر پیدا نشد.');
-    form('تعیین رمز '+e(user.name),`${field('رمز جدید','password','','password','required minlength="12" maxlength="128" autocomplete="new-password"')}<p class="password-note">رمز را از مسیر امن به همکار اطلاع دهید.</p>`,'user-password',id,'ذخیره رمز');
+    form('افزودن همکار',`${field('نام و نام خانوادگی','name','','text','required maxlength="100"')}${field('شماره موبایل','phone','','tel','required dir="ltr" maxlength="15" autocomplete="off"')}${select('نقش','roleId',roles.map(r=>`<option value="${e(r.id)}">${e(r.name)}</option>`).join(''),'required')}<p class="admin-span-2 admin-form-note">همکار با همین شماره موبایل از ورود عمومی سایت کد تأیید پیامکی می‌گیرد. دسترسی پنل بر اساس نقش انتخاب‌شده فعال می‌شود.</p>`,'user-create','','ایجاد حساب');
   }
   function shippingView(){
     if(!can('shipping.edit'))return denied();
@@ -203,7 +199,6 @@
       if(a==='role-edit'){roleForm(button.dataset.id);return;}
       if(a==='role-delete'){roleDeleteForm(button.dataset.id);return;}
       if(a==='user-new'){userCreateForm();return;}
-      if(a==='user-password'){userPasswordForm(button.dataset.id);return;}
       if(a==='user-role'){userRoleForm(button.dataset.id);return;}
       if(a==='user-toggle'){ensure('users.edit');const user=D().state.users.find(u=>u.id===button.dataset.id),enabling=user?.enabled===false;if(!user)throw new Error('کاربر پیدا نشد.');await D().setUserEnabled(user.id,enabling);success(enabling?'حساب کاربر فعال شد.':'حساب کاربر غیرفعال شد.');return;}
       if(a==='shipping-new'){shippingForm();return;}
@@ -234,8 +229,7 @@
       if(name==='ticket'){ensure('tickets.reply');const message=String(fd.get('message')||'').trim();if(message)await D().replyTicket(id,message,true);await D().setTicketStatus(id,fd.get('status'));refresh();ticketForm(id);U().toast(message?'پاسخ و وضعیت ثبت شد.':'وضعیت تیکت ثبت شد.');return;}
       if(name==='role'){ensure('roles.edit');if(id==='owner'){U().closeModal();return;}await D().saveRole({...(id?{id}:{}),name:String(fd.get('name')||'').trim(),permissions:fd.getAll('permissions')});success('نقش و دسترسی‌ها ذخیره شدند.');return;}
       if(name==='role-delete'){ensure('roles.edit');await D().deleteRole(id,fd.get('replacementId'));success('نقش حذف و کاربران به نقش جایگزین منتقل شدند.');return;}
-      if(name==='user-create'){ensure('users.edit');await D().createUser({name:String(fd.get('name')||'').trim(),phone:String(fd.get('phone')||''),roleId:fd.get('roleId'),password:String(fd.get('password')||'')});success('حساب همکار ایجاد شد.');return;}
-      if(name==='user-password'){ensure('users.edit');await D().setUserPassword(id,String(fd.get('password')||''));success('رمز ورود کارکنان تغییر کرد.');return;}
+      if(name==='user-create'){ensure('users.edit');await D().createUser({name:String(fd.get('name')||'').trim(),phone:String(fd.get('phone')||''),roleId:fd.get('roleId')});success('حساب همکار ایجاد شد.');return;}
       if(name==='user-role'){ensure('users.edit');await D().setUserRole(id,fd.get('roleId'));success('نقش کاربر تغییر کرد.');return;}
       if(name==='shipping'){ensure('shipping.edit');const cod=fd.get('feeType')==='cod';await D().saveShipping({...(id?{id}:{}),name:String(fd.get('name')||'').trim(),description:String(fd.get('description')||'').trim(),fee:cod?0:amount(fd.get('fee')),payOnDelivery:cod,enabled:fd.has('enabled')});success('روش ارسال ذخیره شد.');return;}
       if(name==='appearance'){appearanceDraft=readAppearance(el);appearanceReview();return;}

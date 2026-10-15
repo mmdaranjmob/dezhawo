@@ -491,7 +491,7 @@ function admin_protect_owner(array $actor, array $target): void
 function admin_assert_owner_remains(array $target): void
 {
     if (admin_role_id($target) !== 'owner' || !$target['enabled']) return;
-    $owners = admin_query("SELECT id FROM users WHERE role_id='owner' AND enabled=1 AND password_hash IS NOT NULL AND password_hash<>'' ORDER BY id FOR UPDATE")->fetchAll(PDO::FETCH_COLUMN);
+    $owners = admin_query("SELECT id FROM users WHERE role_id='owner' AND enabled=1 ORDER BY id FOR UPDATE")->fetchAll(PDO::FETCH_COLUMN);
     if (in_array($target['id'],$owners,true) && count($owners) <= 1) app_error('آخرین مدیر اصلی قابل حذف یا سلب دسترسی نیست.',409);
 }
 
@@ -548,12 +548,10 @@ function admin_role_delete(array $input): array
             $replacement = $replacementId ? admin_one('SELECT id FROM roles WHERE id=?',[$replacementId]) : null;
             if (!$replacement) app_error('برای کاربران این نقش، نقش جایگزین تعیین کنید.');
             admin_assert_assignable($actor,$replacement);
-            if ($replacementId === 'owner' && admin_one("SELECT id FROM users WHERE role_id=? AND (password_hash IS NULL OR password_hash='') LIMIT 1",[$id])) app_error('پیش از انتقال به مدیر اصلی، برای همه کاربران این نقش رمز کارکنان تعیین کنید.');
         }
         audit('role.delete',$id,['replacementId'=>$replacementId,'usersAffected'=>count($users)]);
         if ($users) {
-            if ($replacementId === 'customer') admin_query('UPDATE users SET role_id=?,password_hash=NULL,updated_at=UTC_TIMESTAMP() WHERE role_id=?',[$replacementId,$id]);
-            else admin_query('UPDATE users SET role_id=?,updated_at=UTC_TIMESTAMP() WHERE role_id=?',[$replacementId,$id]);
+            admin_query('UPDATE users SET role_id=?,updated_at=UTC_TIMESTAMP() WHERE role_id=?',[$replacementId,$id]);
         }
         admin_query('DELETE FROM role_permissions WHERE role_id=?',[$id]);
         admin_query('DELETE FROM roles WHERE id=?',[$id]);
@@ -574,11 +572,9 @@ function admin_user_role(array $input): array
         if (!$target || !$role) app_error('کاربر یا نقش پیدا نشد.',404);
         admin_protect_owner($actor,$target);
         admin_assert_assignable($actor,$role);
-        if ($roleId === 'owner' && !admin_one("SELECT id FROM users WHERE id=? AND password_hash IS NOT NULL AND password_hash<>''",[$id])) app_error('ابتدا برای این کاربر نقش کارکنان و رمز ورود تعیین کنید؛ سپس نقش مدیر اصلی بدهید.');
         if ($roleId !== 'owner') admin_assert_owner_remains($target);
         audit('user.role',$id,['from'=>$target['role_id'],'to'=>$roleId]);
-        if ($roleId === 'customer') admin_query('UPDATE users SET role_id=?,password_hash=NULL,updated_at=UTC_TIMESTAMP() WHERE id=?',[$roleId,$id]);
-        else admin_query('UPDATE users SET role_id=?,updated_at=UTC_TIMESTAMP() WHERE id=?',[$roleId,$id]);
+        admin_query('UPDATE users SET role_id=?,updated_at=UTC_TIMESTAMP() WHERE id=?',[$roleId,$id]);
         $target['role_id'] = $roleId;
         return admin_user($target);
     });
@@ -603,32 +599,6 @@ function admin_user_enabled(array $input): array
     });
 }
 
-function admin_password(mixed $value): string
-{
-    if (!is_string($value) || strlen($value)<12 || strlen($value)>72 || str_contains($value,"\0")) app_error('رمز کارکنان باید بین ۱۲ تا ۷۲ بایت باشد.');
-    return $value;
-}
-
-function admin_user_password(array $input): array
-{
-    $actor = require_permission('users.edit');
-    $id = admin_id($input['userId'] ?? null);
-    $password = admin_password($input['password'] ?? null);
-    $hash = password_hash($password,PASSWORD_BCRYPT,['cost'=>12]);
-    return transaction(function() use($actor,$id,$hash): array {
-        admin_lock_roles();
-        $actor = require_permission('users.edit');
-        $target = admin_one('SELECT id,name,phone,role_id,enabled FROM users WHERE id=? FOR UPDATE',[$id]);
-        if (!$target) app_error('کاربر پیدا نشد.',404);
-        if ($target['role_id'] === 'customer') app_error('برای مشتری رمز کارکنان تعیین نمی‌شود.');
-        admin_protect_owner($actor,$target);
-        admin_assert_assignable($actor,['id'=>$target['role_id']]);
-        audit('user.password',$id);
-        admin_query('UPDATE users SET password_hash=?,updated_at=UTC_TIMESTAMP() WHERE id=?',[$hash,$id]);
-        return ['id'=>$id];
-    });
-}
-
 function admin_user_create(array $input): array
 {
     $actor = require_permission('users.edit');
@@ -636,9 +606,7 @@ function admin_user_create(array $input): array
     $phone = phone_value($input['phone'] ?? '');
     $roleId = admin_id($input['roleId'] ?? null);
     if ($roleId === 'customer') app_error('این فرم برای ایجاد حساب کارکنان است.');
-    $password = admin_password($input['password'] ?? null);
-    $hash = password_hash($password,PASSWORD_BCRYPT,['cost'=>12]);
-    return transaction(function() use($actor,$name,$phone,$roleId,$hash): array {
+    return transaction(function() use($actor,$name,$phone,$roleId): array {
         admin_lock_roles();
         $actor = require_permission('users.edit');
         $role = admin_one('SELECT id FROM roles WHERE id=?',[$roleId]);
@@ -646,7 +614,7 @@ function admin_user_create(array $input): array
         admin_assert_assignable($actor,$role);
         if (admin_one('SELECT id FROM users WHERE phone=?',[$phone])) app_error('این شماره قبلاً ثبت شده؛ نقش حساب موجود را تغییر دهید.',409);
         $id = uid('usr');
-        admin_query('INSERT INTO users(id,name,phone,password_hash,role_id,enabled,created_at,updated_at) VALUES(?,?,?,?,?,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())',[$id,$name,$phone,$hash,$roleId]);
+        admin_query('INSERT INTO users(id,name,phone,password_hash,role_id,enabled,created_at,updated_at) VALUES(?,?,?,NULL,?,1,UTC_TIMESTAMP(),UTC_TIMESTAMP())',[$id,$name,$phone,$roleId]);
         audit('user.create',$id,['roleId'=>$roleId]);
         return ['id'=>$id,'name'=>$name,'phone'=>$phone,'roleId'=>$roleId,'enabled'=>true];
     });
@@ -710,7 +678,7 @@ function admin_action(string $action, array $input): mixed
         'settings.save'=>admin_settings_save($input), 'shipping.save'=>admin_shipping_save($input),
         'shipping.disable'=>admin_shipping_disable($input), 'role.save'=>admin_role_save($input),
         'role.delete'=>admin_role_delete($input), 'user.role'=>admin_user_role($input),
-        'user.enabled'=>admin_user_enabled($input), 'user.password'=>admin_user_password($input),
+        'user.enabled'=>admin_user_enabled($input),
         'user.create'=>admin_user_create($input), 'ticket.create'=>admin_ticket_create($input),
         'ticket.reply'=>admin_ticket_reply($input), 'ticket.status'=>admin_ticket_status($input),
         default=>app_error('عملیات پشتیبانی نمی‌شود.',404),

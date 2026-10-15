@@ -109,9 +109,7 @@ class Checks:
             token = re.search(r'name=["\']csrf["\'][^>]*value=["\']([^"\']+)', html)
             assert token, 'installer CSRF field absent'
             fields = {'csrf': token.group(1), 'installation_key': self.secrets['installation_key'],
-                      'name': 'مدیر آزمون', 'phone': self.secrets['owner_phone'],
-                      'password': self.secrets['owner_password'],
-                      'password_confirmation': self.secrets['owner_password']}
+                      'name': 'مدیر آزمون', 'phone': self.secrets['owner_phone']}
             bad = dict(fields, csrf='invalid')
             assert self.owner.request('/install.php', bad, form=True)[0] == 403
             bad = dict(fields, installation_key='invalid')
@@ -125,10 +123,10 @@ class Checks:
         assert self.owner.request('/install.php', {}, form=True)[0] == 409
 
     def owner_login(self):
-        self.owner.action('auth.adminLogin', {'phone': self.secrets['owner_phone'],
-                          'password': self.secrets['owner_password']})
+        self.otp_sign_in(self.secrets['owner_phone'], self.owner)
         data = self.owner.bootstrap()
         assert data['currentUser']['roleId'] == 'owner'
+        assert 'roles.edit' in data['currentUser']['permissions']
         self.owner_id = data['currentUser']['id']
         self.owner.action('shipping.save', {'shipping': {'id': 'qa_shipping', 'name': 'ارسال آزمون',
                           'description': 'فقط محیط آزمون', 'fee': 50000, 'payOnDelivery': False, 'enabled': True}})
@@ -150,20 +148,27 @@ class Checks:
         self.owner.action('user.enabled', {'userId': self.owner_id, 'enabled': False}, expected=409)
         self.owner.action('user.role', {'userId': self.owner_id, 'roleId': 'customer'}, expected=409)
 
-    def otp_login(self, label):
-        client = Client(self.args.base)
+    def otp_sign_in(self, phone, client=None, claims=None):
+        """Use the actual HTTP OTP flow; only the testing outbox supplies the code."""
+        client = client or Client(self.args.base)
         client.bootstrap()
-        phone = '09' + ''.join(str(secrets.randbelow(10)) for _ in range(9))
         before = set((self.private / 'outbox').glob('*.json'))
-        result = client.action('auth.requestOtp', {'phone': phone})
+        result = client.action('auth.requestOtp', {'phone': phone, **(claims or {})})
         assert 'code' not in json.dumps(result), 'OTP exposed in response'
         paths = set((self.private / 'outbox').glob('*.json')) - before
         assert len(paths) == 1, 'expected one private OTP outbox file'
         payload = json.loads(paths.pop().read_text())
         code = payload['code']
         assert self.sql("SELECT code_hash FROM otp_challenges WHERE id='" + payload['id'] + "';") != code
-        client.action('auth.verifyOtp', {'phone': phone, 'code': code})
+        assert self.sql("SELECT purpose FROM otp_challenges WHERE id='" + payload['id'] + "';") == 'login'
+        client.action('auth.verifyOtp', {'phone': phone, 'code': code, **(claims or {})})
         client.action('auth.verifyOtp', {'phone': phone, 'code': code}, expected=401)
+        return client
+
+    def otp_login(self, label):
+        phone = '09' + ''.join(str(secrets.randbelow(10)) for _ in range(9))
+        # A client-supplied role must never provision an administrator.
+        client = self.otp_sign_in(phone, claims={'roleId': 'owner', 'role': 'owner', 'permissions': ['roles.edit']})
         status, data = client.request('/api.php?action=auth.requestOtp', {'phone': phone})
         assert status == 429 and not data.get('ok'), 'OTP request limit not applied'
         assert client.bootstrap()['currentUser']['roleId'] == 'customer'
@@ -177,6 +182,9 @@ class Checks:
         assert status == 403 and not data.get('ok')
         customer_boot = self.customer.bootstrap()
         assert not customer_boot.get('users')
+        assert not customer_boot['currentUser']['permissions'], 'new phone obtained a privileged role'
+        self.customer.action('auth.adminLogin', {'phone': self.customer_phone, 'password': 'removed'}, expected=404)
+        self.owner.action('user.password', {'userId': self.owner_id, 'password': 'removed'}, expected=404)
 
     def otp_challenge(self):
         client = Client(self.args.base)
@@ -199,22 +207,43 @@ class Checks:
         client.action('auth.verifyOtp', {'phone': phone, 'code': challenge['code']}, expected=401)
         row = self.sql("SELECT attempts, consumed_at IS NOT NULL FROM otp_challenges WHERE id='"+challenge['id']+"';")
         assert row == '5\t1', 'five wrong attempts did not consume challenge'
-        before = set((self.private / 'outbox').glob('*.json'))
-        client.action('auth.requestOtp', {'phone': self.secrets['owner_phone']})
-        assert set((self.private / 'outbox').glob('*.json')) == before, 'staff OTP generated customer login code'
-
     def staff_session_revocation(self):
         phone = '09' + ''.join(str(secrets.randbelow(10)) for _ in range(9))
-        password = 'QA!'+secrets.token_hex(12)+'Aa9'
         employee = self.owner.action('user.create', {'name': 'صندوق‌دار آزمون '+self.prefix,
-                                 'phone': phone, 'password': password, 'roleId': 'cashier'})
-        staff = Client(self.args.base)
-        staff.bootstrap()
-        staff.action('auth.adminLogin', {'phone': phone, 'password': password})
-        assert staff.bootstrap()['currentUser']['roleId'] == 'cashier'
-        self.owner.action('user.password', {'userId': employee['id'],
-                          'password': 'QA!'+secrets.token_hex(12)+'Aa9'})
-        assert not staff.bootstrap().get('currentUser'), 'old staff session survived password reset'
+                                 'phone': phone, 'roleId': 'cashier'})
+        staff = self.otp_sign_in(phone)
+        user = staff.bootstrap()['currentUser']
+        assert user['roleId'] == 'cashier' and 'pos.create' in user['permissions']
+        assert 'users.edit' not in user['permissions']
+        self.owner.action('user.role', {'userId': employee['id'], 'roleId': 'customer'})
+        assert not staff.bootstrap().get('currentUser'), 'old OTP session survived a role change'
+        staff.action('pos.sale', {}, expected=401)
+
+        phone = '09' + ''.join(str(secrets.randbelow(10)) for _ in range(9))
+        employee = self.owner.action('user.create', {'name': 'کاربر غیرفعال آزمون '+self.prefix,
+                                 'phone': phone, 'roleId': 'cashier'})
+        staff = self.otp_sign_in(phone)
+        self.owner.action('user.enabled', {'userId': employee['id'], 'enabled': False})
+        assert not staff.bootstrap().get('currentUser'), 'disabled staff retained an OTP session'
+        # An eligible challenge must also be rejected if the account is disabled before verification.
+        pending, phone, challenge = self.otp_challenge()
+        customer = self.sql("SELECT id FROM users WHERE phone='" + phone + "';")
+        assert not customer
+        created = self.owner.action('user.create', {'name': 'کاربر منتظر آزمون '+self.prefix,
+                                 'phone': phone, 'roleId': 'cashier'})
+        self.owner.action('user.enabled', {'userId': created['id'], 'enabled': False})
+        pending.action('auth.verifyOtp', {'phone': phone, 'code': challenge['code']}, expected=401)
+        assert not pending.bootstrap().get('currentUser')
+
+        phone = '09' + ''.join(str(secrets.randbelow(10)) for _ in range(9))
+        disabled = self.owner.action('user.create', {'name': 'کاربر مسدود آزمون '+self.prefix,
+                                 'phone': phone, 'roleId': 'cashier'})
+        self.owner.action('user.enabled', {'userId': disabled['id'], 'enabled': False})
+        before = set((self.private / 'outbox').glob('*.json'))
+        blocked = Client(self.args.base); blocked.bootstrap()
+        reply = blocked.action('auth.requestOtp', {'phone': phone})
+        assert set((self.private / 'outbox').glob('*.json')) == before, 'disabled account received an OTP'
+        assert reply.get('expiresIn') == 300 and 'code' not in json.dumps(reply)
 
     def product(self, suffix, stock=5, category='case'):
         product_id, variant_id = self.prefix + suffix, self.prefix + '_v' + suffix
@@ -269,9 +298,10 @@ class Checks:
         product, variant = self.product('_posrace', 1)
         clients = [Client(self.args.base), Client(self.args.base)]
         for client in clients:
-            client.bootstrap()
-            client.action('auth.adminLogin', {'phone': self.secrets['owner_phone'],
-                          'password': self.secrets['owner_password']})
+            phone = '09' + ''.join(str(secrets.randbelow(10)) for _ in range(9))
+            self.owner.action('user.create', {'name': 'فروشنده همزمان '+self.prefix,
+                              'phone': phone, 'roleId': 'cashier'})
+            self.otp_sign_in(phone, client)
         def sell(client):
             return client.request('/api.php?action=pos.sale', {'lines': [{'productId': product,
                                   'variantId': variant, 'quantity': 1}], 'payment': 'cash', 'customer': ''})
@@ -394,11 +424,11 @@ class Checks:
 
     def run(self):
         for title, fn in [('first-owner installation and lock', self.install),
-                          ('staff authentication', self.owner_login),
+                          ('owner uses the shared mobile OTP login with stored permissions', self.owner_login),
                           ('CSRF, privacy, last-owner guard', self.privacy),
-                          ('customer OTP hashing, replay, rate-limit and permissions', self.auth_cases),
-                          ('OTP expiry, five-attempt consumption and staff isolation', self.otp_expiry_attempts),
-                          ('staff session revocation after password reset', self.staff_session_revocation),
+                          ('customer OTP, role claim isolation and removed password endpoints', self.auth_cases),
+                          ('OTP expiry and five-attempt challenge consumption', self.otp_expiry_attempts),
+                          ('staff OTP permissions, role revocation and disabled account rejection', self.staff_session_revocation),
                           ('shared inventory and POS transactions', self.inventory_pos),
                           ('parallel reservations and POS availability', self.reservation_concurrency),
                           ('parallel physical POS sales never oversell', self.parallel_pos),

@@ -25,6 +25,7 @@ return [
         'secure' => true,
     ],
     'sms' => [
+        // Required for every login, including the owner and staff.
         'provider' => 'kavenegar',
         'api_key' => '',
         'sender' => '',

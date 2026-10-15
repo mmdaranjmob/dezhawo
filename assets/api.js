@@ -93,13 +93,13 @@
     saveSettings:settings => mutate('settings.save',{settings}), saveShipping:shipping => mutate('shipping.save',{shipping}),
     disableShipping:id => mutate('shipping.disable',{id}), saveRole:role => mutate('role.save',{role}),
     deleteRole:(id,replacementId) => mutate('role.delete',{id,replacementId}),
-    createUser:user => mutate('user.create',user), setUserPassword:(userId,password) => mutate('user.password',{userId,password}),
+    createUser:user => mutate('user.create',user),
     setUserRole:(userId,roleId) => mutate('user.role',{userId,roleId}), setUserEnabled:(userId,enabled) => mutate('user.enabled',{userId,enabled}),
     setOrderStatus:(id,status) => mutate('order.status',{id,status}), setOrderTracking:(id,trackingCode) => mutate('order.tracking',{id,trackingCode}),
     createTicket:(subject,message,orderId) => mutate('ticket.create',{subject,message,orderId}),
     replyTicket:(id,message) => mutate('ticket.reply',{id,message}), setTicketStatus:(id,status) => mutate('ticket.status',{id,status}),
     requestOtp:phone => mutate('auth.requestOtp',{phone}), verifyOtp:(phone,code) => mutate('auth.verifyOtp',{phone,code}),
-    adminLogin:(phone,password) => mutate('auth.adminLogin',{phone,password}), logout:() => mutate('auth.logout',{}),
+    logout:() => mutate('auth.logout',{}),
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
   };
   Object.defineProperty(DZ,'state',{get:() => state});

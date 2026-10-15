@@ -6,8 +6,10 @@ MySQL/MariaDB, **not Docker, Python, Node, or Playwright**.
 Use a disposable local database. The integration suite writes products, users,
 roles, orders, tickets, CMS settings and temporary inventory fixtures. It refuses
 non-loopback URLs and a database name without the `_qa` suffix. It never drops
-tables or deletes application data. Only its disposable rate-limit table is
-cleared at the beginning to allow a repeatable test run.
+tables or deletes application data. The HTTP, administrator and browser suites
+clear only the disposable rate-limit table at the beginning to allow immediate
+repeat runs. An administrator session-revocation check can also expire those QA
+windows before reauthenticating; production limits are never changed.
 
 ```sh
 python3 tests/runtime.py start --private-dir /tmp/dezhawo-qa
@@ -23,15 +25,17 @@ Container and network names are `dezhawo-qa-web`, `dezhawo-qa-db`, and
 `dezhawo-qa-net`. Stop retains the private database for inspection. An existing
 container bound to another private directory is rejected.
 
-Generated installation keys, application keys, passwords and OTP messages stay
-in the private directory outside the repository. Passwords and OTP codes are not
+Generated installation keys, application keys, database passwords and OTP messages
+stay in the private directory outside the repository. Secrets and OTP codes are not
 printed. The explicit testing environment uses a private OTP outbox and a payment
 stub; production ignores these switches. The local PHP server disables opcode
 caching so temporary private configuration changes are visible immediately.
 
 The HTTP and database tests exercise first-owner installation, session and OTP
-authentication, expiry/replay/rate limits, CSRF, role boundaries, privacy, password
-revocation, shared inventory, concurrent POS/reservations, provider rejection,
+authentication for owners, employees and customers through one mobile flow,
+expiry/replay/rate limits, rejection of removed password routes, client-supplied
+role isolation, disabled-account rejection, session revocation on role changes,
+CSRF, role boundaries, privacy, shared inventory, concurrent POS/reservations, provider rejection,
 payment replay, single restocking, expired paid stock shortages, payment resume,
 digital delivery details, CMS and customer tickets. Actual SMS delivery and bank
 transactions require the host's own provider credentials and a separate sandbox
@@ -51,11 +55,13 @@ CHROMIUM_PATH=/usr/bin/chromium \
 node tests/browser.js
 ```
 
-Browser checks cover five viewport sizes, staff login, colors and prices, POS,
+Browser checks cover five viewport sizes, the shared owner/customer OTP form,
+permission-controlled management entry, colors and prices, POS,
 customer OTP, tickets, cart locking, payment resume and callback state. The
 administrator regression suite additionally checks privilege escalation,
 restricted price/stock updates, reserved-item disabling, historical variants,
-password reset and role demotion.
+immediate permission edits, role demotion, customer promotion without a password
+and last-owner protection for an owner provisioned through OTP.
 
 `python3 tests/hosting.py --base http://127.0.0.1:8081` checks private directory
 guards and the PHP default document using a separate actual Apache instance with

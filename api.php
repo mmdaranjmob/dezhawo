@@ -21,12 +21,12 @@ try {
         respond(bootstrap_data());
     }
     $allowed = [
-        'auth.requestOtp', 'auth.verifyOtp', 'auth.adminLogin', 'auth.logout',
+        'auth.requestOtp', 'auth.verifyOtp', 'auth.logout',
         'cart.add', 'cart.set', 'reservation.create', 'reservation.release', 'order.checkout', 'order.resume',
         'pos.sale', 'inventory.adjust', 'order.status', 'order.tracking',
         'product.save', 'product.enabled', 'variant.enabled', 'product.delete', 'settings.save',
         'shipping.save', 'shipping.disable', 'role.save', 'role.delete',
-        'user.role', 'user.enabled', 'user.password', 'user.create',
+        'user.role', 'user.enabled', 'user.create',
         'ticket.create', 'ticket.reply', 'ticket.status',
     ];
     if (!in_array($action, $allowed, true)) {

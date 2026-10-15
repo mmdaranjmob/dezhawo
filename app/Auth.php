@@ -1,40 +1,32 @@
 <?php
 declare(strict_types=1);
 
-/** Session authentication and DB-backed permissions. Never serialize password hashes. */
+/** All accounts use mobile OTP; authorization always comes from the stored role. */
 function current_user(): ?array
 {
     $id = $_SESSION['user_id'] ?? null;
     $kind = $_SESSION['auth_kind'] ?? null;
-    if (!is_string($id) || !in_array($kind, ['staff', 'customer'], true)) {
-        if (is_string($id)) {
+    if (!is_string($id) || $kind !== 'otp') {
+        if ($id !== null || $kind !== null || isset($_SESSION['auth_stamp'])) {
             unset($_SESSION['user_id'], $_SESSION['auth_kind'], $_SESSION['auth_stamp'], $_SESSION['cart_key']);
         }
         return null;
     }
-    $q = db()->prepare('SELECT id, name, phone, role_id, enabled, password_hash FROM users WHERE id = ? LIMIT 1');
+    $q = db()->prepare('SELECT id, name, phone, role_id, enabled FROM users WHERE id = ? LIMIT 1');
     $q->execute([$id]);
     $row = $q->fetch(PDO::FETCH_ASSOC);
     $valid = $row && (int)$row['enabled'] === 1;
-    if ($valid && $kind === 'customer') {
-        // Promoting a customer must require a subsequent password login.
-        $valid = $row['role_id'] === 'customer' && empty($row['password_hash']);
-    } elseif ($valid && $kind === 'staff') {
-        $valid = is_string($row['password_hash']) && $row['password_hash'] !== '' && $row['role_id'] !== 'customer';
-        $stamp = $_SESSION['auth_stamp'] ?? null;
-        if ($valid) {
-            $valid = is_string($stamp) && hash_equals(
-                hash_hmac('sha256', $row['id'] . '|' . $row['password_hash'], auth_key()),
-                $stamp
-            );
-        }
+    $stamp = $_SESSION['auth_stamp'] ?? null;
+    if ($valid) {
+        // Role or phone changes require a fresh OTP, including customer promotions.
+        $valid = is_string($stamp) && hash_equals(auth_session_stamp($row), $stamp);
     }
     if (!$valid) {
         unset($_SESSION['user_id'], $_SESSION['auth_kind'], $_SESSION['auth_stamp'], $_SESSION['cart_key']);
         return null;
     }
     $grants = [];
-    if ($kind === 'staff') {
+    if ($row['role_id'] !== 'customer') {
         $q = db()->prepare('SELECT permission FROM role_permissions WHERE role_id = ? ORDER BY permission');
         $q->execute([$row['role_id']]);
         $grants = array_values(array_intersect($q->fetchAll(PDO::FETCH_COLUMN), permissions()));
@@ -148,6 +140,11 @@ function auth_otp_hash(string $challengeId, string $phone, string $code): string
     return hash_hmac('sha256', $challengeId . '|' . $phone . '|' . $code, auth_key());
 }
 
+function auth_session_stamp(array $user): string
+{
+    return hash_hmac('sha256', $user['id'] . '|' . $user['phone'] . '|' . $user['role_id'], auth_key());
+}
+
 function auth_request_otp(array $input): array
 {
     $phone = auth_phone($input);
@@ -163,16 +160,16 @@ function auth_request_otp(array $input): array
     $code = (string)random_int(100000, 999999);
     $hash = auth_otp_hash($challengeId, $phone, $code);
     $created = transaction(function () use ($phone, $challengeId, $hash): bool {
-        $q = db()->prepare('SELECT role_id, password_hash, enabled FROM users WHERE phone = ? FOR UPDATE');
+        $q = db()->prepare('SELECT enabled FROM users WHERE phone = ? FOR UPDATE');
         $q->execute([$phone]);
         $user = $q->fetch(PDO::FETCH_ASSOC);
-        if ($user && ((int)$user['enabled'] !== 1 || $user['role_id'] !== 'customer' || !empty($user['password_hash']))) {
+        if ($user && (int)$user['enabled'] !== 1) {
             return false;
         }
         $q = db()->prepare('UPDATE otp_challenges SET consumed_at = UTC_TIMESTAMP() WHERE phone = ? AND purpose = ? AND consumed_at IS NULL');
-        $q->execute([$phone, 'customer']);
+        $q->execute([$phone, 'login']);
         $q = db()->prepare('INSERT INTO otp_challenges (id, phone, purpose, code_hash, attempts, expires_at, consumed_at, created_at) VALUES (?, ?, ?, ?, 0, DATE_ADD(UTC_TIMESTAMP(), INTERVAL 5 MINUTE), NULL, UTC_TIMESTAMP())');
-        $q->execute([$challengeId, $phone, 'customer', $hash]);
+        $q->execute([$challengeId, $phone, 'login', $hash]);
         return true;
     });
     if ($created) {
@@ -185,8 +182,8 @@ function auth_request_otp(array $input): array
             throw $error;
         }
     }
-    // The same response protects staff/disabled phone numbers from enumeration.
-    return ['message' => 'اگر شماره واجد شرایط ورود مشتری باشد، رمز پیامکی ارسال می‌شود.', 'expiresIn' => 300, 'retryAfter' => 60];
+    // Disabled accounts receive the same response without a usable challenge.
+    return ['message' => 'اگر شماره واجد شرایط ورود باشد، رمز پیامکی ارسال می‌شود.', 'expiresIn' => 300, 'retryAfter' => 60];
 }
 
 function auth_verify_otp(array $input): array
@@ -200,7 +197,7 @@ function auth_verify_otp(array $input): array
     ]);
     $userId = transaction(function () use ($phone, $code): ?string {
         $q = db()->prepare('SELECT id, code_hash, attempts, consumed_at, (expires_at > UTC_TIMESTAMP()) AS unexpired FROM otp_challenges WHERE phone = ? AND purpose = ? ORDER BY created_at DESC, id DESC LIMIT 1 FOR UPDATE');
-        $q->execute([$phone, 'customer']);
+        $q->execute([$phone, 'login']);
         $challenge = $q->fetch(PDO::FETCH_ASSOC);
         $id = $challenge ? (string)$challenge['id'] : 'missing';
         $candidate = auth_otp_hash($id, $phone, $code);
@@ -214,12 +211,12 @@ function auth_verify_otp(array $input): array
             $q->execute([$attempts, $attempts, $id]);
             return null;
         }
-        $q = db()->prepare('SELECT id, role_id, enabled, password_hash FROM users WHERE phone = ? FOR UPDATE');
+        $q = db()->prepare('SELECT id, enabled FROM users WHERE phone = ? FOR UPDATE');
         $q->execute([$phone]);
         $user = $q->fetch(PDO::FETCH_ASSOC);
         $q = db()->prepare('UPDATE otp_challenges SET consumed_at = UTC_TIMESTAMP() WHERE id = ?');
         $q->execute([$id]);
-        if ($user && ((int)$user['enabled'] !== 1 || $user['role_id'] !== 'customer' || !empty($user['password_hash']))) {
+        if ($user && (int)$user['enabled'] !== 1) {
             return null;
         }
         if (!$user) {
@@ -233,45 +230,20 @@ function auth_verify_otp(array $input): array
     if ($userId === null) {
         app_error('رمز نامعتبر یا منقضی شده است؛ رمز جدید درخواست کنید.', 401);
     }
-    auth_begin_session($userId, 'customer');
-    audit('auth.customer_login', $userId);
+    auth_begin_session($userId);
+    audit('auth.otp_login', $userId);
     return ['user' => require_user()];
 }
 
-function auth_admin_login(array $input): array
+function auth_begin_session(string $userId): void
 {
-    $phone = auth_phone($input);
-    auth_rate_limit([
-        ['staff:login:ip:' . auth_request_ip(), 30, 900],
-        ['staff:login:phone:' . $phone, 10, 900],
-    ]);
-    $password = $input['password'] ?? '';
-    $password = is_string($password) && strlen($password) <= 72 ? $password : '';
-    $q = db()->prepare('SELECT id, password_hash, enabled, role_id FROM users WHERE phone = ? LIMIT 1');
-    $q->execute([$phone]);
+    $q = db()->prepare('SELECT id, phone, role_id, enabled FROM users WHERE id = ? LIMIT 1');
+    $q->execute([$userId]);
     $user = $q->fetch(PDO::FETCH_ASSOC);
-    // A valid bcrypt hash prevents a missing number from skipping expensive verification.
-    $dummyHash = '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
-    $storedHash = $user && is_string($user['password_hash']) && $user['password_hash'] !== '' ? $user['password_hash'] : $dummyHash;
-    $verified = password_verify($password, $storedHash);
-    if (!$user || !$verified || (int)$user['enabled'] !== 1 || empty($user['password_hash']) || $user['role_id'] === 'customer') {
-        app_error('شماره موبایل یا رمز ورود صحیح نیست.', 401);
+    if (!$user || (int)$user['enabled'] !== 1) {
+        app_error('ورود به این حساب ممکن نیست.', 401);
     }
-    if (password_needs_rehash($storedHash, PASSWORD_BCRYPT, ['cost' => 12])) {
-        $newHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
-        $q = db()->prepare('UPDATE users SET password_hash = ?, updated_at = UTC_TIMESTAMP() WHERE id = ? AND password_hash = ?');
-        $q->execute([$newHash, $user['id'], $storedHash]);
-        $storedHash = $newHash;
-    }
-    auth_begin_session((string)$user['id'], 'staff', $storedHash);
-    audit('auth.staff_login', (string)$user['id']);
-    return ['user' => require_user()];
-}
-
-function auth_begin_session(string $userId, string $kind, ?string $passwordHash = null): void
-{
-    $stamp = $kind === 'staff' && $passwordHash !== null
-        ? hash_hmac('sha256', $userId . '|' . $passwordHash, auth_key()) : null;
+    $stamp = auth_session_stamp($user);
     if (!session_regenerate_id(true)) {
         app_error('ایجاد نشست ورود ممکن نشد؛ دوباره تلاش کنید.', 503);
     }
@@ -279,12 +251,8 @@ function auth_begin_session(string $userId, string $kind, ?string $passwordHash 
         unset($_SESSION['cart_key']);
     }
     $_SESSION['user_id'] = $userId;
-    $_SESSION['auth_kind'] = $kind;
-    if ($stamp !== null) {
-        $_SESSION['auth_stamp'] = $stamp;
-    } else {
-        unset($_SESSION['auth_stamp']);
-    }
+    $_SESSION['auth_kind'] = 'otp';
+    $_SESSION['auth_stamp'] = $stamp;
     unset($_SESSION['csrf']);
 }
 
@@ -303,7 +271,6 @@ function auth_action(string $action, array $input): mixed
     return match ($action) {
         'auth.requestOtp' => auth_request_otp($input),
         'auth.verifyOtp' => auth_verify_otp($input),
-        'auth.adminLogin' => auth_admin_login($input),
         'auth.logout' => auth_logout(),
         default => app_error('عملیات ورود شناخته نشد.', 404),
     };

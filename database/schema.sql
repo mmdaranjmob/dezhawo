@@ -22,6 +22,7 @@ CREATE TABLE users (
   id VARCHAR(64) NOT NULL,
   name VARCHAR(100) NOT NULL,
   phone VARCHAR(11) NOT NULL,
+  -- Reserved for compatibility with older installations; login uses mobile OTP.
   password_hash VARCHAR(255) NULL,
   role_id VARCHAR(64) NOT NULL,
   enabled TINYINT(1) NOT NULL DEFAULT 1,
@@ -232,7 +233,7 @@ CREATE TABLE ticket_messages (
 CREATE TABLE otp_challenges (
   id VARCHAR(64) NOT NULL,
   phone VARCHAR(11) NOT NULL,
-  purpose VARCHAR(20) NOT NULL DEFAULT 'customer',
+  purpose VARCHAR(20) NOT NULL DEFAULT 'login',
   code_hash VARCHAR(255) NOT NULL,
   attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
   expires_at DATETIME NOT NULL,
