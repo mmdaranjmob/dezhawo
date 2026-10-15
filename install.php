@@ -164,13 +164,16 @@ header('Referrer-Policy: no-referrer');
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#f5f4ef">
+  <script src="assets/theme.js"></script>
   <title>راه‌اندازی دژاوو | DEZHAWO</title>
   <style>
     *{box-sizing:border-box}body{margin:0;background:#f5f3eb;color:#272821;font:15px/1.9 Tahoma,Arial,sans-serif}main{width:min(640px,calc(100% - 32px));margin:48px auto;padding:30px;background:#fffdf7;border:1px solid #e3dfd2;border-radius:22px}h1{font-size:24px;margin:0 0 10px}h2{font-size:17px}p{margin:12px 0}label{display:block;margin:18px 0 6px}input{width:100%;border:1px solid #ccc8bc;border-radius:10px;padding:13px;background:#fff;font:inherit;min-width:0}input:focus{outline:2px solid #858d5d}button,a.button{display:inline-block;margin-top:24px;border:0;border-radius:10px;padding:13px 24px;background:#282b22;color:#fff;text-decoration:none;font:inherit;cursor:pointer}.message{padding:14px;border:1px solid #e1b5a0;border-radius:12px;background:#fff0e7}.success{border-color:#bdcba4;background:#eef4df}small{color:#666}code{direction:ltr;display:inline-block;overflow-wrap:anywhere}ol{padding-right:22px}li{margin:8px 0}
   </style>
+  <link rel="stylesheet" href="assets/theme.css">
 </head>
-<body><main>
-  <h1>راه‌اندازی دژاوو <span dir="ltr">DEZHAWO</span></h1>
+<body class="theme-page theme-install"><main>
+  <div class="theme-page-header"><h1>راه‌اندازی دژاوو <span dir="ltr">DEZHAWO</span></h1><?php require __DIR__ . '/app/theme-control.php'; ?></div>
   <?php if ($message !== ''): ?>
     <p class="message <?= $success ? 'success' : '' ?>" role="status"><?= installation_escape($message) ?></p>
   <?php endif; ?>

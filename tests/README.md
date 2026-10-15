@@ -61,3 +61,12 @@ password reset and role demotion.
 guards and the PHP default document using a separate actual Apache instance with
 `mod_rewrite` and `AllowOverride All`. The built-in PHP development server ignores
 `.htaccess`, so it cannot validate those hosting protections.
+
+Appearance checks use synthetic bootstrap responses in isolated browser contexts;
+they do not sign in, change the database or need private credentials. They cover
+system appearance changes, saved overrides, cross-tab synchronization, keyboard
+controls, mobile layouts and readable dark surfaces:
+
+```sh
+DEZHAWO_THEME_QA_URL=http://127.0.0.1:8080 node tests/theme.js
+```

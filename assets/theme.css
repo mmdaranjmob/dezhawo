@@ -1,0 +1,189 @@
+/* Appearance controls are shared by the shop, administration and standalone pages. */
+:root {
+  color-scheme: light;
+  --theme-surface: #fff;
+  --theme-raised: #f1f0e9;
+  --theme-fg: #171b15;
+  --theme-muted: #6e7165;
+  --theme-line: #deded5;
+  --theme-hover: #f2f2eb;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #141713;
+  --ink: #f2f0e8;
+  --muted: #b3b6aa;
+  --line: #3b4435;
+  --red: #f57a62;
+  --theme-surface: #22281e;
+  --theme-raised: #2c3426;
+  --theme-fg: #f2f0e8;
+  --theme-muted: #b3b6aa;
+  --theme-line: #3b4435;
+  --theme-hover: #303b28;
+}
+.theme-control {display:inline-flex;align-items:center;justify-content:center;flex:none}
+.theme-control>.theme-trigger {display:inline-flex;align-items:center;justify-content:center;width:39px;height:39px;flex:none;margin:0;border:0;border-radius:50%;padding:8px;color:inherit;background:transparent;font:inherit;cursor:pointer}
+.theme-control>.theme-trigger:hover,.theme-trigger[aria-expanded="true"] {background:var(--theme-hover)}
+.theme-icon {display:block;width:21px;height:21px;flex:none}
+.theme-menu {position:fixed;z-index:120;width:230px;max-width:calc(100vw - 24px);max-height:calc(100svh - 24px);overflow-y:auto;overscroll-behavior:contain;padding:9px;background:var(--theme-surface);color:var(--theme-fg);border:1px solid var(--theme-line);border-radius:16px;box-shadow:0 12px 40px #0003;font:13px/1.7 var(--sans,Vazirmatn,Tahoma,sans-serif);direction:rtl}
+.theme-menu[hidden] {display:none!important}
+.theme-menu-title {margin:2px 9px 7px;font-size:11px;color:var(--theme-muted)}
+.theme-menu [data-theme-choice] {display:flex;align-items:center;gap:11px;width:100%;min-height:57px;margin:0;padding:10px;border:0;border-radius:10px;background:transparent;color:inherit;text-align:right;text-decoration:none;font:inherit;cursor:pointer}
+.theme-menu [data-theme-choice]:hover {background:var(--theme-hover)}
+.theme-menu [data-theme-choice][aria-checked="true"] {background:var(--theme-raised)}
+.theme-menu [data-theme-choice] strong {display:block;font-weight:650;font-size:12px}
+.theme-menu [data-theme-choice] small {display:block;font-size:10px;color:var(--theme-muted)}
+.theme-check {width:17px;height:17px;margin-right:auto;flex:none;visibility:hidden}
+[data-theme-choice][aria-checked="true"] .theme-check {visibility:visible}
+.theme-trigger:focus-visible,.theme-menu button:focus-visible {outline:3px solid #5495ef;outline-offset:3px}
+.admin-top-actions {display:flex;align-items:center;gap:10px}
+.theme-page-header {display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+.theme-page-header>.theme-control {margin-top:-4px}
+
+/* Inverted interface surfaces; editorial artwork keeps its intended palette. */
+html[data-theme="dark"] .hdr,
+html[data-theme="dark"] .nav-links,
+html[data-theme="dark"] .btn-light,
+html[data-theme="dark"] .search-box,
+html[data-theme="dark"] .input,
+html[data-theme="dark"] .select,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] .quantity-control,
+html[data-theme="dark"] .cart-bottom,
+html[data-theme="dark"] .ticket-message,
+html[data-theme="dark"] .shipping-option,
+html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .admin-card,
+html[data-theme="dark"] .permission-grid label,
+html[data-theme="dark"] .appearance-preview,
+html[data-theme="dark"] .admin-role-card,
+html[data-theme="dark"] .admin-appearance-preview {background:var(--theme-surface);color:var(--ink);border-color:var(--line)}
+html[data-theme="dark"] .hdr {box-shadow:0 0 0 1px #ffffff09,0 16px 36px -24px #0009}
+html[data-theme="dark"] .util {border-color:var(--line);color:var(--muted)}
+html[data-theme="dark"] .brand-tagline,
+html[data-theme="dark"] .hero-copy>p,
+html[data-theme="dark"] .data-table td small,
+html[data-theme="dark"] .admin-list-row small,
+html[data-theme="dark"] .admin-form-note,
+html[data-theme="dark"] .admin-variant-header p,
+html[data-theme="dark"] .admin-pos-row small,
+html[data-theme="dark"] .admin-order-info span,
+html[data-theme="dark"] .admin-message small,
+html[data-theme="dark"] .admin-role-card p,
+html[data-theme="dark"] .admin-shipping-card>p,
+html[data-theme="dark"] .admin-preview-header small,
+html[data-theme="dark"] .admin-preview-header nav,
+html[data-theme="dark"] .admin-preview-footer p,
+html[data-theme="dark"] .admin-preview-footer small,
+html[data-theme="dark"] .admin-preview-footer-links,
+html[data-theme="dark"] .admin-section-divider p,
+html[data-theme="dark"] .admin-demo-note {color:var(--muted)}
+html[data-theme="dark"] .btn-dark,
+html[data-theme="dark"] .filter-btn.active,
+html[data-theme="dark"] .account-tab.active {background:#f2f0e8;color:#171b15}
+html[data-theme="dark"] .btn-dark:hover {background:#dddccc}
+html[data-theme="dark"] .hero-actions .arrow-circle {background:#00000015}
+html[data-theme="dark"] .btn-red {color:#171b15}
+html[data-theme="dark"] .filter-btn:not(.active):hover,
+html[data-theme="dark"] .modal-close,
+html[data-theme="dark"] .icon-btn,
+html[data-theme="dark"] .admin-variant,
+html[data-theme="dark"] .admin-header-link,
+html[data-theme="dark"] .admin-footer-link {background:var(--theme-raised);color:var(--ink);border-color:var(--line)}
+html[data-theme="dark"] .data-table th,
+html[data-theme="dark"] .admin-preview-placeholder {background:#1b2217;color:var(--muted)}
+html[data-theme="dark"] .data-table th,
+html[data-theme="dark"] .data-table td,
+html[data-theme="dark"] .admin-list-row,
+html[data-theme="dark"] .admin-pos-row,
+html[data-theme="dark"] .admin-order-info,
+html[data-theme="dark"] .admin-permissions fieldset,
+html[data-theme="dark"] .admin-variant-header,
+html[data-theme="dark"] .admin-section-divider,
+html[data-theme="dark"] .admin-preview-header {border-color:var(--line)}
+html[data-theme="dark"] .admin-link {color:var(--ink)}
+html[data-theme="dark"] .admin-danger {color:#ffad97!important}
+html[data-theme="dark"] .admin-check input,
+html[data-theme="dark"] .check-grid input {accent-color:#fcdd71}
+html[data-theme="dark"] .input::placeholder,
+html[data-theme="dark"] textarea::placeholder {color:#a0a994;opacity:1}
+html[data-theme="dark"] .variant-option {border-color:#536047}
+html[data-theme="dark"] .variant-option.active {border-color:var(--ink)}
+html[data-theme="dark"] .stock-note {color:#b5d99d}
+html[data-theme="dark"] .form-error {color:#ffad97}
+html[data-theme="dark"] .pill,
+html[data-theme="dark"] .pill-gray {background:#2c3426;color:#d2d4c7;border-color:#48533e}
+html[data-theme="dark"] .pill-green,
+html[data-theme="dark"] .success-icon {background:#2b3b22;color:#c0dfad;border-color:#48603b}
+html[data-theme="dark"] .pill-red {background:#422c24;color:#ffbda8;border-color:#704b3b}
+html[data-theme="dark"] .pill-orange {background:#403422;color:#f4d38f;border-color:#6c5733}
+html[data-theme="dark"] .demo-note,
+html[data-theme="dark"] .admin-demo-banner {background:#352f20;color:#eddbb2;border-color:#605333}
+html[data-theme="dark"] .ticket-message.staff,
+html[data-theme="dark"] .admin-message-staff {background:#2d3c28;color:var(--ink)}
+html[data-theme="dark"] .admin-message {background:#293122;color:var(--ink)}
+html[data-theme="dark"] .admin-message.admin-message-staff {background:#30432b}
+html[data-theme="dark"] .toast {background:#26321f;color:#f2f0e8;border:1px solid #4b5a3d;box-shadow:0 6px 30px #0005}
+html[data-theme="dark"] .toast.error {background:#6e3026;color:#fff;border-color:#9b5a47}
+html[data-theme="dark"] dialog::backdrop {background:#050904b8}
+html[data-theme="dark"] .runtime-status {color:#171b15}
+html[data-theme="dark"] .runtime-status.error {background:#422c24;color:#ffbda8}
+html[data-theme="dark"] .nav-link .pill {color:#171b15}
+html[data-theme="dark"] .cart-count {color:#171b15}
+
+/* Fixed-color brand regions need a fixed foreground, rather than inverted ink. */
+html[data-theme="dark"] ::selection {background:#fcdd71;color:#171b15}
+html[data-theme="dark"] .announcement {background:#0d110b;color:#f2f0e8}
+html[data-theme="dark"] .mosaic-cell,
+html[data-theme="dark"] .mosaic-sticker,
+html[data-theme="dark"] .product-badge,
+html[data-theme="dark"] .favorite-btn,
+html[data-theme="dark"] .digital-banner,
+html[data-theme="dark"] .digital-art .floating-label,
+html[data-theme="dark"] .story-art .en {color:#0f0f0e}
+html[data-theme="dark"] .mosaic-cell.dark {color:#f5f4ef}
+html[data-theme="dark"] .favorite-btn.active {color:#b43f2c}
+html[data-theme="dark"] .digital-banner .btn-dark {background:#0f0f0e;color:#fff}
+html[data-theme="dark"] .digital-banner .btn-dark:hover {background:#30372b}
+html[data-theme="dark"] .story {background:#0c100a;color:#f2f0e8}
+html[data-theme="dark"] .story p {color:#b8b9ac}
+html[data-theme="dark"] .category-card:hover {color:#171b15}
+html[data-theme="dark"] .category-card:hover small {color:#4f513f}
+html[data-theme="dark"] .circle-btn:hover {color:#171b15}
+html[data-theme="dark"] .admin-sidebar {background:#0c100a;color:#f2f0e8}
+html[data-theme="dark"] .admin-sidebar button.active {color:#171b15}
+html[data-theme="dark"] .admin-sidebar-foot .icon-btn {background:#2c3426;color:#e6eadc}
+html[data-theme="dark"] .color-dot {box-shadow:0 0 0 2px var(--theme-surface)}
+html[data-theme="dark"] .color-swatches .color-dot,
+html[data-theme="dark"] .variant-option .color-dot {box-shadow:none}
+
+/* First-run installation and the gateway receipt share the same preference. */
+html[data-theme="dark"] body.theme-page {background:var(--paper);color:var(--ink)}
+html[data-theme="dark"] .theme-page main {background:var(--theme-surface);border-color:var(--line)}
+html[data-theme="dark"] .theme-page p,
+html[data-theme="dark"] .theme-page small {color:var(--muted)}
+html[data-theme="dark"] .theme-page input {background:#1b2117;color:var(--ink);border-color:#536047}
+html[data-theme="dark"] .theme-page button[type="submit"],
+html[data-theme="dark"] .theme-page a.button {background:#f2f0e8;color:#171b15}
+html[data-theme="dark"] .theme-page .message,
+html[data-theme="dark"] .theme-page .test,
+html[data-theme="dark"] .theme-receipt.payment-warning .mark {background:#403422;border-color:#6c5733;color:#f4d38f}
+html[data-theme="dark"] .theme-page .message.success,
+html[data-theme="dark"] .theme-receipt.payment-success .mark {background:#2b3b22;border-color:#48603b;color:#c0dfad}
+html[data-theme="dark"] .theme-page .number {border-color:var(--line)}
+
+/* Keep all controls within the compact mobile header. */
+@media (max-width:700px) {
+  .main-nav {gap:8px}
+  .main-nav .brand-name {font-size:25px}
+  .nav-tools button,.nav-tools .theme-trigger {width:30px;height:35px;padding:5px}
+  .nav-tools .theme-icon {width:19px;height:19px}
+  .admin-top-actions {gap:7px}
+  .admin-top-actions .btn {min-width:0}
+}
+@media (max-width:380px) {
+  .main-nav .brand-name {font-size:21px}
+  .nav-tools button,.nav-tools .theme-trigger {width:28px}
+  .brand-tagline {font-size:6px}
+}
