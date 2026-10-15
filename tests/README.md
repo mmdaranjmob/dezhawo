@@ -41,6 +41,25 @@ digital delivery details, CMS and customer tickets. Actual SMS delivery and bank
 transactions require the host's own provider credentials and a separate sandbox
 verification.
 
+Provider protocol checks run the actual SMS implementation with deterministic
+cURL fixtures, without a database, configuration secrets, or external requests:
+
+```sh
+php tests/sms_provider.php
+# With the optional development runtime already running:
+docker exec dezhawo-qa-web php /var/www/html/tests/sms_provider.php
+```
+
+These checks cover Niazpardaz API-key and username/password request formats,
+documented result envelopes, unsuccessful and malformed results, HTTP/network
+failures, no automatic resend, TLS verification, disabled redirects, timeouts,
+streamed response limits, unsafe configuration rejection, production ignoring
+the testing outbox, private testing files, and existing Kavenegar compatibility.
+The fixture loads the unchanged provider source into an isolated PHP namespace;
+there is no production testing endpoint or transport override. PHP needs the
+cURL extension for its constants. Successful fixtures verify the protocol, not
+delivery to a real handset or the account's sending-line authorization.
+
 Optional browser checks need Playwright available to Node and a local Chromium
 executable. Install test dependencies outside this checkout if needed:
 

@@ -26,9 +26,17 @@ return [
     ],
     'sms' => [
         // Required for every login, including the owner and staff.
-        'provider' => 'kavenegar',
+        // Supported providers: niazpardaz, kavenegar. No Composer package is needed.
+        'provider' => 'niazpardaz',
+        // Niazpardaz authentication: api_key or credentials. Select the mode for your account.
+        'niazpardaz_auth' => 'api_key',
+        // Used by Niazpardaz api_key mode, or by Kavenegar.
         'api_key' => '',
+        // An authorized sender line from the selected provider; do not use a sample line.
         'sender' => '',
+        // Used only by Niazpardaz credentials mode; leave empty for api_key mode.
+        'username' => '',
+        'password' => '',
     ],
     'payment' => [
         'provider' => 'zarinpal',
