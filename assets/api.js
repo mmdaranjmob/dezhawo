@@ -22,10 +22,11 @@
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 45000);
     try {
+      const multipart = typeof FormData !== 'undefined' && data instanceof FormData;
       const response = await fetch('api.php?action=' + encodeURIComponent(action), {
         method, credentials:'same-origin', cache:'no-store', signal:controller.signal,
-        headers: method === 'POST' ? {'Content-Type':'application/json','X-CSRF-Token':csrf} : {'Accept':'application/json'},
-        ...(method === 'POST' ? {body:JSON.stringify(data || {})} : {})
+        headers: method === 'POST' ? {'X-CSRF-Token':csrf,...(multipart?{}:{'Content-Type':'application/json'})} : {'Accept':'application/json'},
+        ...(method === 'POST' ? {body:multipart?data:JSON.stringify(data || {})} : {})
       });
       let payload;
       try { payload = await response.json(); } catch (_) { throw new Error('پاسخ سرور قابل خواندن نیست. تنظیمات PHP و اتصال پایگاه داده را بررسی کنید.'); }
@@ -92,6 +93,7 @@
     reportDelivery:orderId => mutate('order.deliver',{orderId}),
     adjustStock:(productId,variantId,delta,reason) => mutate('inventory.adjust',{productId,variantId,delta,reason}),
     saveProduct:product => mutate('product.save',{product}),
+    uploadProductImage:file => { const data=new FormData();data.append('image',file);return mutate('product.imageUpload',data); },
     setVariantEnabled:(productId,variantId,enabled) => mutate('variant.enabled',{productId,variantId,enabled}),
     setProductEnabled:(id,enabled) => mutate('product.enabled',{id,enabled}), deleteProduct:id => mutate('product.delete',{id}),
     saveSettings:settings => mutate('settings.save',{settings}), saveShipping:shipping => mutate('shipping.save',{shipping}),

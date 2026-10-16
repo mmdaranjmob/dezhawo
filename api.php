@@ -8,6 +8,7 @@ require_once __DIR__ . '/app/Commerce.php';
 require_once __DIR__ . '/app/Payments.php';
 require_once __DIR__ . '/app/Digipay.php';
 require_once __DIR__ . '/app/ManualPayments.php';
+require_once __DIR__ . '/app/ProductImages.php';
 require_once __DIR__ . '/app/Admin.php';
 
 $action = is_string($_GET['action'] ?? null) ? $_GET['action'] : '';
@@ -27,7 +28,7 @@ try {
         'auth.requestOtp', 'auth.verifyOtp', 'auth.logout',
         'cart.add', 'cart.set', 'reservation.create', 'reservation.release', 'order.checkout', 'order.resume',
         'pos.sale', 'inventory.adjust', 'order.status', 'order.tracking',
-        'product.save', 'product.enabled', 'variant.enabled', 'product.delete', 'settings.save',
+        'product.save', 'product.imageUpload', 'product.enabled', 'variant.enabled', 'product.delete', 'settings.save',
         'payments.settings', 'transfer.submit', 'transfer.review', 'order.deliver',
         'shipping.save', 'shipping.disable', 'role.save', 'role.delete',
         'user.role', 'user.enabled', 'user.create',
@@ -41,6 +42,9 @@ try {
     $owner = db()->query("SELECT id FROM users WHERE role_id='owner' LIMIT 1")->fetch();
     if (!$owner) {
         app_error('ابتدا مدیر فروشگاه را از نصب‌کننده ایجاد کنید.', 503);
+    }
+    if ($action === 'product.imageUpload') {
+        respond(product_image_upload());
     }
     $input = body();
     if (str_starts_with($action, 'auth.')) {

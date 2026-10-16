@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import secrets
+import shutil
 import subprocess
 import time
 
@@ -41,6 +42,7 @@ def main():
         print('QA containers stopped; private test database retained.')
         return
     private.mkdir(mode=0o700, parents=True, exist_ok=True)
+    private.chmod(0o700)
     secret_path = private / 'secrets.json'
     if secret_path.exists():
         values = json.loads(secret_path.read_text())
@@ -69,14 +71,27 @@ def main():
                         'MARIADB_USER=dezhawo_qa\nMARIADB_PASSWORD='+values['database_password']+'\n')
     env_path.chmod(0o600)
     (private / 'outbox').mkdir(mode=0o700, exist_ok=True)
+    # Keep the checkout read-only while PHP can store real uploaded QA photos.
+    # Mounting this directory directly also lets an optional Apache QA server
+    # serve the same files without exposing other private fixtures.
+    product_uploads = private / 'product-uploads'
+    product_uploads.mkdir(mode=0o755, exist_ok=True)
+    product_uploads.chmod(0o755)
+    upload_guard = repository / 'uploads/products/.htaccess'
+    assert upload_guard.is_file(), 'Product upload hosting guard is missing'
+    shutil.copyfile(upload_guard, product_uploads / '.htaccess')
+    (product_uploads / '.htaccess').chmod(0o644)
     (private / 'docker').mkdir(exist_ok=True)
     build_dir = private / 'build'
     build_dir.mkdir(exist_ok=True)
     (build_dir / 'Dockerfile').write_text('FROM php:8.3-cli\nRUN docker-php-ext-install pdo_mysql\n'
                                          'WORKDIR /var/www/html\n'
-                                         'CMD ["php","-d","opcache.enable=0","-S","0.0.0.0:8080","-t","/var/www/html"]\n')
+                                         'CMD ["php","-d","opcache.enable=0","-d","upload_max_filesize=8M",'
+                                         '"-d","post_max_size=12M","-d","display_errors=0",'
+                                         '"-S","0.0.0.0:8080","-t","/var/www/html"]\n')
     run(['docker', 'pull', 'mariadb:11.4'])
-    run(['docker', '--config', str(private / 'docker'), 'build', '--pull', '-t', 'dezhawo-php-qa:8.3', str(build_dir)])
+    # Preserve the managed Docker client's proxy and registry configuration.
+    run(['docker', 'build', '--pull', '-t', 'dezhawo-php-qa:8.3', str(build_dir)])
     if network not in run(['docker', 'network', 'ls', '--format', '{{.Name}}'], capture=True).splitlines():
         run(['docker', 'network', 'create', network])
     existing = run(['docker', 'ps', '-a', '--format', '{{.Names}}'], capture=True).splitlines()
@@ -106,6 +121,7 @@ def main():
     run(['docker', 'run', '-d', '--name', web_container, '--user', f'{os.getuid()}:{os.getgid()}',
          '--network', network, '-p', f'127.0.0.1:{args.port}:8080', '-e', 'PHP_CLI_SERVER_WORKERS=8',
          '-e', 'DEZHAWO_CONFIG=/qa/qa-config.php', '-v', str(repository)+':/var/www/html:ro',
+         '-v', str(product_uploads)+':/var/www/html/uploads/products',
          '-v', str(private)+':/qa', 'dezhawo-php-qa:8.3'])
     print(f'QA ready at http://127.0.0.1:{args.port}; private config and OTP files stay outside checkout.')
 

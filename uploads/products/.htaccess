@@ -1,0 +1,19 @@
+Options -Indexes -ExecCGI
+
+# Uploaded files have random names and image extensions only. Do not inherit a
+# PHP/CGI handler even if a hosting control panel assigned one at a parent level.
+<FilesMatch "(?i)^[a-f0-9]{48}\.(jpg|png|webp)$">
+    SetHandler none
+</FilesMatch>
+<FilesMatch "(?i)^(?![a-f0-9]{48}\.(jpg|png|webp)$)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+</IfModule>

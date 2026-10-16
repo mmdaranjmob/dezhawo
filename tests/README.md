@@ -108,3 +108,25 @@ controls, mobile layouts and readable dark surfaces:
 ```sh
 DEZHAWO_THEME_QA_URL=http://127.0.0.1:8080 node tests/theme.js
 ```
+
+Product photographs have HTTP and actual-browser checks. The local runtime keeps
+source read-only and mounts a writable `product-uploads` folder from the private
+QA directory. JPEG, PNG and WebP uploads are limited to 8 MiB; PHP is started with
+an 8 MiB upload limit and 12 MiB POST limit. Existing QA databases need the additive
+`database/upgrade-20261016-product-images.sql` migration before these checks.
+
+```sh
+python3 tests/product_images.py --private-dir /tmp/dezhawo-qa
+NODE_PATH=/tmp/dezhawo-browser/node_modules node tests/product_photos_browser.js
+DEZHAWO_QA_PHOTOS_LIVE=1 \
+DEZHAWO_QA_SECRETS=/tmp/dezhawo-qa/secrets.json \
+DEZHAWO_QA_OUTBOX=/tmp/dezhawo-qa/outbox \
+NODE_PATH=/tmp/dezhawo-browser/node_modules node tests/product_photos_browser.js
+```
+
+The HTTP checks cover permissions/CSRF, actual image formats and limits, forged
+paths, preserved/removed photographs and unchanged stock. Browser checks cover the
+original storefront in eight viewport/appearance combinations, upload and removal,
+photographs in catalog/details/cart, role restrictions and a sale occurring while
+the product editor is open. Saving an unchanged stock field must retain the latest
+inventory. These checks use disposable QA products and local image fixtures only.

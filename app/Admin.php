@@ -110,9 +110,9 @@ function admin_products(bool $staff = false): array
 {
     $products = [];
     $finance = can('finance.view');
-    foreach (admin_query('SELECT id,title,category,badge,description,art,price,cost,enabled FROM products' . ($staff ? '' : ' WHERE enabled=1') . ' ORDER BY created_at,id')->fetchAll(PDO::FETCH_ASSOC) as $row) {
+    foreach (admin_query('SELECT id,title,category,badge,description,art,image_url,price,cost,enabled FROM products' . ($staff ? '' : ' WHERE enabled=1') . ' ORDER BY created_at,id')->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $product = ['id'=>$row['id'],'title'=>$row['title'],'category'=>$row['category'],'badge'=>$row['badge'],
-            'description'=>$row['description'],'art'=>$row['art'],'price'=>(int)$row['price'],
+            'description'=>$row['description'],'art'=>$row['art'],'imageUrl'=>product_image_public_url($row['image_url']),'price'=>(int)$row['price'],
             'enabled'=>(bool)$row['enabled'],'variants'=>[]];
         if ($finance) $product['cost'] = (int)$row['cost'];
         $products[$row['id']] = $product;
@@ -271,6 +271,7 @@ function admin_product_save(array $input): array
     $stockReason = admin_text($raw['stockReason'] ?? 'ثبت موجودی در ویرایش محصول',300,'دلیل تغییر موجودی',true);
     $art = admin_text($raw['art'] ?? ($category==='digital'?'telegram':$category),20);
     if (!in_array($art,['case','glass','cable','charger','audio','telegram'],true)) app_error('نمای محصول معتبر نیست.');
+    $imagePath = array_key_exists('imageUrl', $raw) ? product_image_path($raw['imageUrl']) : null;
     if (!isset($raw['variants']) || !is_array($raw['variants']) || !array_is_list($raw['variants']) || count($raw['variants']) < 1 || count($raw['variants']) > 100) app_error('بین یک تا صد رنگ یا گزینه وارد کنید.');
     $variants = [];
     foreach ($raw['variants'] as $value) {
@@ -285,8 +286,9 @@ function admin_product_save(array $input): array
             'price'=>isset($variant['price']) && $variant['price']!=='' ? int_value($variant['price'],'قیمت رنگ') : null,
             'enabled'=>array_key_exists('enabled',$variant) ? admin_bool($variant['enabled']) : true];
     }
-    return transaction(function() use ($raw,$id,$title,$category,$price,$badge,$description,$art,$variants,$user,$stockReason): array {
+    return transaction(function() use ($raw,$id,$title,$category,$price,$badge,$description,$art,$imagePath,$variants,$user,$stockReason): array {
         $existing = admin_one('SELECT * FROM products WHERE id=? FOR UPDATE',[$id]);
+        $imagePath = array_key_exists('imageUrl', $raw) ? $imagePath : ($existing['image_url'] ?? null);
         $existingVariants = $existing ? admin_variant_locks($id) : [];
         $enabled = array_key_exists('enabled',$raw) ? admin_bool($raw['enabled']) : (bool)($existing['enabled'] ?? 1);
         if ($existing && $existing['enabled'] && !$enabled) {
@@ -320,9 +322,9 @@ function admin_product_save(array $input): array
             if ($category !== 'digital' && $stock < admin_reserved($variantId)) app_error('موجودی جدید از تعداد رزروشده کمتر است.',409);
         }
         if ($existing) {
-            admin_query('UPDATE products SET title=?,category=?,badge=?,description=?,art=?,price=?,cost=?,enabled=?,updated_at=UTC_TIMESTAMP() WHERE id=?',[$title,$category,$badge,$description,$art,$price,$cost,(int)$enabled,$id]);
+            admin_query('UPDATE products SET title=?,category=?,badge=?,description=?,art=?,image_url=?,price=?,cost=?,enabled=?,updated_at=UTC_TIMESTAMP() WHERE id=?',[$title,$category,$badge,$description,$art,$imagePath,$price,$cost,(int)$enabled,$id]);
         } else {
-            admin_query('INSERT INTO products(id,title,category,badge,description,art,price,cost,enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),UTC_TIMESTAMP())',[$id,$title,$category,$badge,$description,$art,$price,$cost,(int)$enabled]);
+            admin_query('INSERT INTO products(id,title,category,badge,description,art,image_url,price,cost,enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),UTC_TIMESTAMP())',[$id,$title,$category,$badge,$description,$art,$imagePath,$price,$cost,(int)$enabled]);
         }
         foreach ($removed as $variant) admin_query('UPDATE product_variants SET enabled=0,updated_at=UTC_TIMESTAMP() WHERE id=?',[$variant['id']]);
         foreach ($variants as $variantId=>$variant) {
