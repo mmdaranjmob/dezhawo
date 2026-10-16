@@ -24,7 +24,8 @@ return array (
     'name' => 'dezhawo_session',
     'secure' => true,
   ),
-  'sms' =>
+  'temporary_login'=>['enabled'=>true,'phone'=>'09128546547','password_hash'=>'$2y$10$lAdlBcQpAmrFlztnN.VBceaPWUxjRyNnGLOXJFsa6Zt4zyTyrU.pK'],
+'sms' =>
   array (
     'provider' => 'niazpardaz',
     'niazpardaz_auth' => 'api_key',

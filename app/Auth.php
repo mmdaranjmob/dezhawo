@@ -1,14 +1,14 @@
 <?php
 declare(strict_types=1);
 
-/** All accounts use mobile OTP; authorization always comes from the stored role. */
+/** Authorization always comes from the stored role, including temporary access. */
 function current_user(): ?array
 {
     $id = $_SESSION['user_id'] ?? null;
     $kind = $_SESSION['auth_kind'] ?? null;
-    if (!is_string($id) || $kind !== 'otp') {
+    if (!is_string($id) || !in_array($kind, ['otp', 'temporary'], true)) {
         if ($id !== null || $kind !== null || isset($_SESSION['auth_stamp'])) {
-            unset($_SESSION['user_id'], $_SESSION['auth_kind'], $_SESSION['auth_stamp'], $_SESSION['cart_key']);
+            unset($_SESSION['user_id'], $_SESSION['auth_kind'], $_SESSION['auth_stamp'], $_SESSION['auth_issued_at'], $_SESSION['cart_key']);
         }
         return null;
     }
@@ -18,11 +18,13 @@ function current_user(): ?array
     $valid = $row && (int)$row['enabled'] === 1;
     $stamp = $_SESSION['auth_stamp'] ?? null;
     if ($valid) {
-        // Role or phone changes require a fresh OTP, including customer promotions.
-        $valid = is_string($stamp) && hash_equals(auth_session_stamp($row), $stamp);
+        // Role or phone changes require a fresh login, including promotions.
+        $valid = $kind === 'temporary'
+            ? function_exists('temporary_login_session_valid') && temporary_login_session_valid($row)
+            : is_string($stamp) && hash_equals(auth_session_stamp($row), $stamp);
     }
     if (!$valid) {
-        unset($_SESSION['user_id'], $_SESSION['auth_kind'], $_SESSION['auth_stamp'], $_SESSION['cart_key']);
+        unset($_SESSION['user_id'], $_SESSION['auth_kind'], $_SESSION['auth_stamp'], $_SESSION['auth_issued_at'], $_SESSION['cart_key']);
         return null;
     }
     $grants = [];
@@ -235,15 +237,18 @@ function auth_verify_otp(array $input): array
     return ['user' => require_user()];
 }
 
-function auth_begin_session(string $userId): void
+function auth_begin_session(string $userId, string $kind = 'otp'): void
 {
+    if (!in_array($kind, ['otp', 'temporary'], true)) {
+        app_error('روش ورود معتبر نیست.', 401);
+    }
     $q = db()->prepare('SELECT id, phone, role_id, enabled FROM users WHERE id = ? LIMIT 1');
     $q->execute([$userId]);
     $user = $q->fetch(PDO::FETCH_ASSOC);
     if (!$user || (int)$user['enabled'] !== 1) {
         app_error('ورود به این حساب ممکن نیست.', 401);
     }
-    $stamp = auth_session_stamp($user);
+    $stamp = $kind === 'temporary' ? temporary_login_session_stamp($user) : auth_session_stamp($user);
     if (!session_regenerate_id(true)) {
         app_error('ایجاد نشست ورود ممکن نشد؛ دوباره تلاش کنید.', 503);
     }
@@ -251,14 +256,15 @@ function auth_begin_session(string $userId): void
         unset($_SESSION['cart_key']);
     }
     $_SESSION['user_id'] = $userId;
-    $_SESSION['auth_kind'] = 'otp';
+    $_SESSION['auth_kind'] = $kind;
     $_SESSION['auth_stamp'] = $stamp;
+    $_SESSION['auth_issued_at'] = time();
     unset($_SESSION['csrf']);
 }
 
 function auth_logout(): array
 {
-    unset($_SESSION['user_id'], $_SESSION['auth_kind'], $_SESSION['auth_stamp'], $_SESSION['csrf'], $_SESSION['cart_key']);
+    unset($_SESSION['user_id'], $_SESSION['auth_kind'], $_SESSION['auth_stamp'], $_SESSION['auth_issued_at'], $_SESSION['csrf'], $_SESSION['cart_key']);
     // A subsequent browser account must not inherit private pending reservations.
     if (!session_regenerate_id(true)) {
         app_error('خروج از نشست کامل نشد؛ صفحه را دوباره باز کنید.', 503);

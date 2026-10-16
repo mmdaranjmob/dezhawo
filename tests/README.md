@@ -130,3 +130,27 @@ original storefront in eight viewport/appearance combinations, upload and remova
 photographs in catalog/details/cart, role restrictions and a sale occurring while
 the product editor is open. Saving an unchanged stock field must retain the latest
 inventory. These checks use disposable QA products and local image fixtures only.
+
+Temporary owner access, homepage selections and server-rendered SEO have focused
+checks. Run database/configuration-changing suites sequentially:
+
+```sh
+python3 tests/temporary_login.py --private-dir /tmp/dezhawo-qa
+DEZHAWO_QA_PRIVATE_DIR=/tmp/dezhawo-qa \
+NODE_PATH=/tmp/dezhawo-browser/node_modules node tests/temporary_login_browser.js
+python3 tests/hero_products.py --private-dir /tmp/dezhawo-qa
+python3 tests/seo.py --private-dir /tmp/dezhawo-qa
+DEZHAWO_QA_SECRETS=/tmp/dezhawo-qa/secrets.json \
+DEZHAWO_QA_OUTBOX=/tmp/dezhawo-qa/outbox \
+NODE_PATH=/tmp/dezhawo-browser/node_modules node tests/homepage_browser.js
+```
+
+The temporary-login checks restore private QA configuration and provisioning
+markers, and verify one-time owner setup, role changes, disabled accounts, CSRF,
+rate limits, logout, configuration-based session revocation and session retention
+after a verified testing-payment callback. Homepage checks
+cover ordered selections, invalid/duplicate/disabled products, permissions, native
+navigation to a product page and unchanged inventory. SEO checks use real HTTP
+responses with JavaScript disabled: public catalog/product content, safe metadata
+and JSON-LD, toman-to-IRR conversion, stock/reservations, inactive404 responses,
+outage503 responses, sitemap, robots and subdirectory installation.

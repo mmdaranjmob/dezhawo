@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+header('X-Robots-Tag: noindex, nofollow');
 
 // One-time first-owner creation. Import database/schema.sql before visiting.
 // No credentials are printed, prefilled, logged, or saved outside the database.

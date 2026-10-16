@@ -18,7 +18,7 @@
   const tabs = [
     ['overview','نمای کلی','grid',null],['products','محصولات','box','products.view'],['inventory','انبار مرکزی','box','inventory.view'],
     ['pos','فروش حضوری','bag','pos.create'],['orders','سفارش‌ها','truck','orders.view'],['tickets','پشتیبانی','ticket','tickets.view'],
-    ['payments','روش‌های پرداخت','shield','settings.edit'],['roles','نقش‌ها و دسترسی','shield',null],['shipping','روش‌های ارسال','truck','shipping.edit'],['appearance','هدر، فوتر و اینماد','settings',null]
+    ['payments','روش‌های پرداخت','shield','settings.edit'],['homepage','ویترین صفحه اول','grid','settings.edit'],['roles','نقش‌ها و دسترسی','shield',null],['shipping','روش‌های ارسال','truck','shipping.edit'],['appearance','هدر، فوتر و اینماد','settings',null]
   ];
   const U = ()=>window.UI;
   const D = ()=>window.DZ;
@@ -178,6 +178,23 @@
     ensure('shipping.edit');const s=id?D().state.shipping.find(x=>x.id===id):{name:'',description:'',fee:0,payOnDelivery:false,enabled:true};
     form(s.id?'ویرایش روش ارسال':'روش ارسال جدید',`${field('نام روش ارسال','name',s.name,'text','required maxlength="60"')}${select('محاسبه هزینه','feeType',`<option value="flat" ${s.payOnDelivery?'':'selected'}>هزینه ثابت در پرداخت سایت</option><option value="cod" ${s.payOnDelivery?'selected':''}>پس‌کرایه — پرداخت هنگام تحویل</option>`,'data-admin-change="shipping-fee"')}${field('هزینه ارسال (تومان)','fee',s.fee||0,'number',`min="0" step="1" ${s.payOnDelivery?'disabled':''}`)}${check('فعال و قابل انتخاب','enabled',s.enabled!==false)}<div class="admin-span-2">${textarea('توضیح و زمان تقریبی تحویل','description',s.description||'','maxlength="300"')}</div>`,'shipping',s.id||'');
   }
+  function heroSlotPreview(id){
+    const p=getP(id);
+    if(!p)return `<span class="admin-hero-photo admin-hero-photo-empty">${ic('box')}</span><div><strong>محصولی انتخاب نشده</strong><small>برای افزودن به ویترین، محصول دلخواه را انتخاب کنید.</small></div>`;
+    const visible=p.enabled!==false&&(p.variants||[]).some(v=>v.enabled!==false);
+    return `<span class="admin-hero-photo">${p.imageUrl?`<img src="${e(p.imageUrl)}" alt="" loading="lazy" decoding="async">`:ic('box')}</span><div><strong>${e(p.title)}</strong><small>${m(p.price)} · ${visible?(p.imageUrl?'دارای عکس محصول':'هنوز عکسی ثبت نشده'):'غیرفعال؛ محصول دیگری انتخاب کنید'}</small></div>`;
+  }
+  function heroProductsView(){
+    if(!can('settings.edit'))return denied();
+    const ids=Array.isArray(D().state.settings.heroProductIds)?D().state.settings.heroProductIds:[];
+    const products=allProducts().filter(p=>p.enabled!==false&&(p.variants||[]).some(v=>v.enabled!==false));
+    const slots=Array.from({length:9},(_,i)=>{
+      const selected=ids[i]||'';
+      const options=`<option value="">بدون محصول</option>${selected&&!products.some(p=>p.id===selected)?`<option value="${e(selected)}" selected>${e(getP(selected)?.title||'محصول انتخاب‌شده')} — غیرفعال یا حذف‌شده</option>`:''}${products.map(p=>`<option value="${e(p.id)}" ${selected===p.id?'selected':''}>${e(p.title)} · ${p.imageUrl?'دارای عکس':'بدون عکس'}</option>`).join('')}`;
+      return `<div class="admin-hero-slot">${select('جایگاه '+n(i+1),'heroProductId',options,'data-admin-change="hero-product"')}<div class="admin-hero-slot-preview" data-hero-preview>${heroSlotPreview(selected)}</div></div>`;
+    }).join('');
+    return `<div class="admin-toolbar"><p>محصولات دلخواه را جایگزین تصویرهای متحرک بالای صفحهٔ اول کنید. کلیک مشتری، صفحهٔ همان محصول را باز می‌کند.</p></div>${card('محصولات ویترین صفحه اول',`<form data-admin-form="hero-products"><p class="admin-form-note">تا ۹ محصول متفاوت را به ترتیب انتخاب کنید. برای جابه‌جایی، محصول جایگاه‌ها را عوض کنید. تنها محصولات فعال دارای رنگ یا گزینهٔ فعال قابل انتخاب‌اند؛ محصول ناموجود هم قابل نمایش است.</p><p class="admin-form-note">عکس از اطلاعات خود محصول خوانده می‌شود؛ برای تغییر آن به بخش محصولات بروید. خالی‌گذاشتن همهٔ جایگاه‌ها، تصویرهای طراحی اولیه را برمی‌گرداند.</p><div class="admin-hero-slots">${slots}</div><div class="form-actions"><button class="btn btn-dark" type="submit">ذخیره ویترین صفحه اول${ic('check')}</button></div></form>`)}`;
+  }
   function appearanceView(){
     if(!can('appearance.edit')&&!can('enamad.edit'))return denied();const s=D().state.settings;
     return `<div class="admin-toolbar"><p>تغییرات را ابتدا پیش‌نمایش کنید و سپس در فروشگاه منتشر کنید.</p>${action('appearance-edit','ویرایش هدر، فوتر و اینماد','','btn btn-dark','edit')}</div>${appearancePreview(s)}<div class="admin-demo-note">${ic('shield')}اینماد فقط با لینک رسمی اعتبارسنجی نمایش داده می‌شود. دریافت نماد فرایندی جداگانه است.</div>`;
@@ -206,7 +223,7 @@
     if(!D().state.currentUser?.permissions?.length){U().go('store');return;}currentTab=tabs.some(t=>t[0]===tab)?tab:'overview';const el=document.getElementById('adminView');if(!el)return;
     const allowed=t=>t[0]==='roles'?(can('roles.edit')||can('users.edit')):t[0]==='appearance'?(can('appearance.edit')||can('enamad.edit')):can(t[3]);
     const chosen=tabs.find(t=>t[0]===currentTab);const user=typeof D().state.currentUser==='object'?D().state.currentUser:D().state.users.find(u=>u.id===D().state.currentUser);
-    const views={overview,products:productsView,inventory:inventoryView,pos:posView,orders:ordersView,payments:paymentsView,tickets:ticketsView,roles:rolesView,shipping:shippingView,appearance:appearanceView};
+    const views={overview,products:productsView,inventory:inventoryView,pos:posView,orders:ordersView,payments:paymentsView,homepage:heroProductsView,tickets:ticketsView,roles:rolesView,shipping:shippingView,appearance:appearanceView};
     el.innerHTML=`<div class="admin-layout"><aside class="admin-sidebar"><a class="admin-brand" href="#" data-action="store">DEZHAWO<span>پنل مدیریت فروشگاه</span></a><nav>${tabs.filter(allowed).map(([id,label,icon])=>`<button class="${id===currentTab?'active':''}" type="button" data-admin-action="tab" data-tab="${id}">${ic(icon)}<span>${label}</span>${id==='tickets'?(D().state.tickets||[]).filter(t=>t.status!=='closed').length?`<b>${n(D().state.tickets.filter(t=>t.status!=='closed').length)}</b>`:'':''}</button>`).join('')}</nav><div class="admin-sidebar-foot">${ic('user')}<div><strong>${e(user?.name||'کاربر فروشگاه')}</strong><small>${e(D().state.roles.find(r=>r.id===user?.roleId)?.name||'کارکنان فروشگاه')}</small></div><button type="button" class="icon-btn" data-action="logout" aria-label="خروج از حساب کارکنان">${ic('logout')}</button></div></aside><main class="admin-main"><header class="admin-top"><div><small>DEZHAWO / مدیریت</small><h1>${chosen[1]}</h1></div><div class="admin-top-actions">${window.DezhawoTheme?.buttonHtml()||''}<button class="btn btn-light" type="button" data-action="store">${ic('arrow')}بازگشت به فروشگاه</button></div></header><div class="admin-demo-banner">${ic('shield')}<strong>پنل مدیریت دژاوو</strong><span>اطلاعات در پایگاه دادهٔ مشترک ذخیره می‌شوند.</span></div>${allowed(chosen)?views[currentTab]():denied()}</main></div>`;
   }
   document.addEventListener('click',async function(event){
@@ -248,6 +265,7 @@
       if(control.dataset.adminChange==='product-image'){ensure('products.edit');if(formEl.dataset.busy)throw new Error('تا پایان ذخیرهٔ محصول صبر کنید.');const file=control.files?.[0];if(!file)return;if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('عکس JPG، PNG یا WebP انتخاب کنید.');if(file.size>8388608)throw new Error('حجم عکس باید حداکثر ۸ مگابایت باشد.');clearProductImagePreview();productImageFile=file;productImagePreview=URL.createObjectURL(file);formEl.querySelector('.admin-product-photo-preview').innerHTML=productPhotoPreview();formEl.querySelector('[data-product-photo-filename]').textContent=file.name;}
       if(control.dataset.adminChange==='stock-product'||control.dataset.adminChange==='pos-product'){const p=getP(control.value),isStock=control.dataset.adminChange==='stock-product';const list=formEl.querySelector('[name="variantId"]');list.innerHTML=(p?.variants||[]).filter(v=>v.enabled!==false).map(v=>`<option value="${e(v.id)}">${e(v.name)} · ${n(isStock?v.stock:D().stockAvailable(p.id,v.id))} عدد</option>`).join('');}
       if(control.dataset.adminChange==='shipping-fee'){const fee=formEl.querySelector('[name="fee"]');fee.disabled=control.value==='cod';}
+      if(control.dataset.adminChange==='hero-product'){ensure('settings.edit');control.closest('.admin-hero-slot').querySelector('[data-hero-preview]').innerHTML=heroSlotPreview(control.value);}
     }catch(err){error(err);}
   });
   document.addEventListener('submit',async function(event){
@@ -258,6 +276,7 @@
       if(name==='pos-add'){ensure('pos.create');const productId=fd.get('productId'),variantId=fd.get('variantId'),quantity=amount(fd.get('quantity'));if(!Number.isInteger(quantity)||quantity<1)throw new Error('تعداد معتبر وارد کنید.');const existing=posLines.find(l=>l.productId===productId&&l.variantId===variantId);if(quantity+(existing?.quantity||0)>D().stockAvailable(productId,variantId))throw new Error('موجودی قابل فروش کافی نیست.');if(existing)existing.quantity+=quantity;else posLines.push({productId,variantId,quantity});render('pos');U().toast('محصول به فاکتور اضافه شد.');return;}
       if(name==='pos-sale'){ensure('pos.create');if(!posLines.length)throw new Error('فاکتور خالی است.');const sale=await D().sellPOS({lines:posLines.map(l=>({...l})),payment:fd.get('payment'),customer:String(fd.get('customer')||'مشتری حضوری').trim()});posLines=[];refresh();U().toast('فروش حضوری ثبت و موجودی سایت به‌روزرسانی شد.');if(sale?.id&&can('orders.view'))orderForm(sale.id);return;}
       if(name==='payment-settings'){ensure('settings.edit');const settings={zarinpalEnabled:fd.has('zarinpalEnabled'),digipayEnabled:fd.has('digipayEnabled'),bankTransferEnabled:fd.has('bankTransferEnabled')};for(const key of ['bankHolder','bankName','bankCard','bankIban','bankInstructions'])settings[key]=String(fd.get(key)||'').trim();await D().savePaymentSettings(settings);refresh();U().toast('روش‌های پرداخت و اطلاعات حساب ذخیره شدند.');return;}
+      if(name==='hero-products'){ensure('settings.edit');const ids=fd.getAll('heroProductId').map(String).filter(Boolean);if(new Set(ids).size!==ids.length)throw new Error('هر محصول را فقط یک بار در ویترین انتخاب کنید.');await D().saveSettings({heroProductIds:ids});refresh();U().toast('ویترین صفحه اول ذخیره شد.');return;}
       if(name==='transfer-review'){ensure('orders.edit');ensure('finance.view');if(!fd.has('confirmed'))throw new Error('ابتدا بررسی اطلاعات و گردش حساب را تأیید کنید.');const decision=fd.get('decision');if(!['approve','reject'].includes(decision))throw new Error('نتیجه بررسی را انتخاب کنید.');await D().reviewTransfer(id,decision,String(fd.get('note')||'').trim());refresh();orderForm(id);U().toast(decision==='approve'?'نتیجه تأیید واریز ثبت شد.':'واریز رد و پرداخت بسته شد.');return;}
       if(name==='order'){ensure('orders.edit');const tracking=String(fd.get('trackingCode')||'').trim();const oldOrder=D().state.orders.find(o=>o.id===id);if(tracking!==(oldOrder?.trackingCode||''))await D().setOrderTracking(id,tracking);if(fd.get('status')!==oldOrder?.status)await D().setOrderStatus(id,fd.get('status'));success('وضعیت سفارش به‌روزرسانی شد.');return;}
       if(name==='ticket'){ensure('tickets.reply');const message=String(fd.get('message')||'').trim();if(message)await D().replyTicket(id,message,true);await D().setTicketStatus(id,fd.get('status'));refresh();ticketForm(id);U().toast(message?'پاسخ و وضعیت ثبت شد.':'وضعیت تیکت ثبت شد.');return;}

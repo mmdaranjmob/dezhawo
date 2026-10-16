@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/app/bootstrap.php';
 require_once __DIR__ . '/app/Auth.php';
+require_once __DIR__ . '/app/TemporaryLogin.php';
 require_once __DIR__ . '/app/Commerce.php';
 require_once __DIR__ . '/app/PaymentMethods.php';
 require_once __DIR__ . '/app/Digipay.php';
@@ -12,6 +13,7 @@ header('Cache-Control: no-store, private');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 header('X-Frame-Options: SAMEORIGIN');
+header('X-Robots-Tag: noindex, nofollow');
 
 $receipt = ['success' => false, 'number' => '', 'status' => '', 'paymentStatus' => '', 'message' => 'تأیید پرداخت انجام نشده است.'];
 try {

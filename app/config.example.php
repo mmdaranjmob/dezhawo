@@ -24,8 +24,16 @@ return [
         'name' => 'dezhawo_session',
         'secure' => true,
     ],
+    // Optional owner access while SMS is being configured. Disable after repair.
+    // Store a PHP password_hash() result here; never store the plain password.
+    'temporary_login' => [
+        'enabled' => false,
+        'phone' => '',
+        'password_hash' => '',
+    ],
     'sms' => [
-        // Required for every login, including the owner and staff.
+        // Normal customer, staff and owner login uses SMS; the optional temporary
+        // owner access above is independent and should be disabled after repair.
         // Supported providers: niazpardaz, kavenegar. No Composer package is needed.
         'provider' => 'niazpardaz',
         // Niazpardaz authentication: api_key or credentials. Select the mode for your account.

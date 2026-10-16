@@ -85,7 +85,8 @@ function admin_defaults(): array
             ['label'=>'ثبت و پیگیری تیکت','target'=>'#support','group'=>'help'],
             ['label'=>'روش‌های ارسال','target'=>'#shipping-info','group'=>'help'],
             ['label'=>'راهنمای خرید و مرجوعی','target'=>'#policies','group'=>'help']],
-        'enamadUrl'=>'', 'enamadEnabled'=>false, 'policiesText'=>'', 'refundPolicy'=>'', 'digitalPolicy'=>''];
+        'enamadUrl'=>'', 'enamadEnabled'=>false, 'policiesText'=>'', 'refundPolicy'=>'', 'digitalPolicy'=>'',
+        'heroProductIds'=>[]];
 }
 
 function admin_settings(): array
@@ -229,7 +230,7 @@ function bootstrap_data(): array
         'paymentSettings'=>can('settings.edit',$user) ? payment_options() : null,
         'currentUser'=>$safeUser,'users'=>$users,'roles'=>$roles,
         'cart'=>$cart,'reservation'=>$reservation,'orders'=>admin_orders($user),'movements'=>$movements,'tickets'=>admin_tickets($user),
-        'permissions'=>permissions(),'capabilities'=>['smsConfigured'=>$smsConfigured,'paymentConfigured'=>$paymentConfigured],
+        'permissions'=>permissions(),'capabilities'=>['smsConfigured'=>$smsConfigured,'paymentConfigured'=>$paymentConfigured,'temporaryLoginEnabled'=>temporary_login_enabled()],
         'metadata'=>['ordersLimit'=>500,'ticketsLimit'=>500,'ticketMessagesLimit'=>5000,'usersLimit'=>1000,'movementsLimit'=>1000]];
 }
 
@@ -398,8 +399,20 @@ function admin_settings_save(array $input): array
     $changes = [];
     foreach ($raw as $key=>$value) {
         if (!array_key_exists($key,$allowed)) app_error('فیلد تنظیمات مجاز نیست.');
-        $permission = str_starts_with($key,'enamad') ? 'enamad.edit' : (in_array($key,['policiesText','refundPolicy','digitalPolicy'],true) ? 'settings.edit' : 'appearance.edit');
+        $permission = str_starts_with($key,'enamad') ? 'enamad.edit' : (in_array($key,['policiesText','refundPolicy','digitalPolicy','heroProductIds'],true) ? 'settings.edit' : 'appearance.edit');
         require_permission($permission);
+        if ($key === 'heroProductIds') {
+            if (!is_array($value) || !array_is_list($value) || count($value) > 9) app_error('حداکثر ۹ محصول را به ترتیب برای ویترین صفحه اول انتخاب کنید.');
+            $ids = [];
+            foreach ($value as $id) {
+                if (!is_string($id) || $id === '' || trim($id) !== $id) app_error('شناسهٔ محصول ویترین معتبر نیست.');
+                $id = admin_id($id);
+                if (in_array($id,$ids,true)) app_error('یک محصول را بیش از یک بار در ویترین انتخاب نکنید.');
+                $ids[] = $id;
+            }
+            $changes[$key] = $ids;
+            continue;
+        }
         if ($key === 'enamadEnabled') { $changes[$key] = admin_bool($value); continue; }
         if ($key === 'instagram' || $key === 'enamadUrl') { $changes[$key] = admin_url($value,false,$key==='enamadUrl'); continue; }
         if ($key === 'headerLinks' || $key === 'footerLinks') {
@@ -426,6 +439,11 @@ function admin_settings_save(array $input): array
     return transaction(function() use($changes): array {
         // Serialize settings merges, including linked URL/enabled validation.
         admin_query('SELECT name FROM settings ORDER BY name FOR UPDATE')->fetchAll(PDO::FETCH_COLUMN);
+        if (!empty($changes['heroProductIds'])) {
+            $ids = $changes['heroProductIds'];
+            $visible = admin_query('SELECT p.id FROM products p WHERE p.id IN (' . implode(',',array_fill(0,count($ids),'?')) . ') AND p.enabled=1 AND EXISTS(SELECT 1 FROM product_variants v WHERE v.product_id=p.id AND v.enabled=1) ORDER BY p.id FOR UPDATE',$ids)->fetchAll(PDO::FETCH_COLUMN);
+            if (count($visible) !== count($ids)) app_error('محصول ویترین باید فعال و دارای حداقل یک رنگ یا گزینهٔ فعال باشد؛ انتخاب‌های غیرفعال یا حذف‌شده را جایگزین کنید.');
+        }
         $settings = array_replace(admin_settings(),$changes);
         if ($settings['enamadEnabled'] && $settings['enamadUrl'] === '') app_error('برای نمایش اینماد لینک رسمی را وارد کنید.');
         foreach ($changes as $key=>$value) admin_query('INSERT INTO settings(name,value,updated_at) VALUES(?,?,UTC_TIMESTAMP()) ON DUPLICATE KEY UPDATE value=VALUES(value),updated_at=UTC_TIMESTAMP()',[$key,json_value($value)]);

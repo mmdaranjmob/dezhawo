@@ -5,7 +5,7 @@
   const defaults = {
     configured: false, loading: true, products: [], shipping: [], currentUser: null,
     users: [], roles: [], cart: [], reservation: null, orders: [], movements: [], tickets: [], paymentMethods: [], paymentSettings: null,
-    capabilities: {smsConfigured: false, paymentConfigured: false},
+    capabilities: {smsConfigured: false, paymentConfigured: false, temporaryLoginEnabled: false},
     settings: {brand:'DEZHAWO', tagline:'دژاوو؛ انتخابی که می‌ماند.', footerText:'دژاوو؛ لوازم جانبی برای هر روز، انتخابی برای ماندن.'}
   };
   let state = {...defaults};
@@ -105,6 +105,7 @@
     createTicket:(subject,message,orderId) => mutate('ticket.create',{subject,message,orderId}),
     replyTicket:(id,message) => mutate('ticket.reply',{id,message}), setTicketStatus:(id,status) => mutate('ticket.status',{id,status}),
     requestOtp:phone => mutate('auth.requestOtp',{phone}), verifyOtp:(phone,code) => mutate('auth.verifyOtp',{phone,code}),
+    temporaryLogin:(phone,password) => mutate('auth.temporaryLogin',{phone,password}),
     logout:() => mutate('auth.logout',{}),
     subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
   };

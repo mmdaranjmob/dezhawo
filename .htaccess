@@ -5,6 +5,8 @@ Options -Indexes
     RewriteEngine On
     RewriteRule (^|/)\.(?!well-known(/|$)) - [F]
     RewriteRule ^(app|database|tests|tools|storage)(/|$) - [F]
+    RewriteRule ^robots\.txt$ robots.php [L]
+    RewriteRule ^sitemap\.xml$ sitemap.php [L]
 </IfModule>
 
 <IfModule mod_headers.c>

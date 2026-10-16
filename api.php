@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/app/bootstrap.php';
 require_once __DIR__ . '/app/Auth.php';
+require_once __DIR__ . '/app/TemporaryLogin.php';
 require_once __DIR__ . '/app/Sms.php';
 require_once __DIR__ . '/app/PaymentMethods.php';
 require_once __DIR__ . '/app/Commerce.php';
@@ -19,13 +20,13 @@ try {
         }
         config();
         $owner = db()->query("SELECT id FROM users WHERE role_id='owner' LIMIT 1")->fetch();
-        if (!$owner) {
+        if (!$owner && !temporary_login_enabled()) {
             respond(['configured' => false, 'message' => 'دیتابیس آماده است؛ مدیر فروشگاه را از صفحهٔ install.php ایجاد کنید.']);
         }
         respond(bootstrap_data());
     }
     $allowed = [
-        'auth.requestOtp', 'auth.verifyOtp', 'auth.logout',
+        'auth.requestOtp', 'auth.verifyOtp', 'auth.temporaryLogin', 'auth.logout',
         'cart.add', 'cart.set', 'reservation.create', 'reservation.release', 'order.checkout', 'order.resume',
         'pos.sale', 'inventory.adjust', 'order.status', 'order.tracking',
         'product.save', 'product.imageUpload', 'product.enabled', 'variant.enabled', 'product.delete', 'settings.save',
@@ -39,6 +40,9 @@ try {
     }
     require_post();
     check_csrf();
+    if ($action === 'auth.temporaryLogin') {
+        respond(auth_temporary_login(body()));
+    }
     $owner = db()->query("SELECT id FROM users WHERE role_id='owner' LIMIT 1")->fetch();
     if (!$owner) {
         app_error('ابتدا مدیر فروشگاه را از نصب‌کننده ایجاد کنید.', 503);
