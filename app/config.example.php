@@ -39,9 +39,24 @@ return [
         'password' => '',
     ],
     'payment' => [
+        // Legacy/default online gateway. Customer choices are managed in the admin payment settings.
         'provider' => 'zarinpal',
         'merchant_id' => '',
         'sandbox' => false,
+        // Keep every credential private on the host. Never copy them to database settings or Git.
+        'digipay' => [
+            'username' => '',
+            'password' => '',
+            'client_id' => '',
+            'client_secret' => '',
+            'sandbox' => false,
+            // Obtain the merchant's approved basket identifiers from DigiPay; examples are not live IDs.
+            'seller_id' => '',
+            'supplier_id' => '',
+            'category_id' => '',
+            'brand' => 'DEZHAWO',
+            'product_type' => 1,
+        ],
     ],
     // These settings are ignored in production; keep them empty on the host.
     'testing' => [

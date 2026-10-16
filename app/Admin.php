@@ -138,7 +138,7 @@ function admin_products(bool $staff = false): array
 function admin_order(array $row, array $lines): array
 {
     $address = $row['address_json'] ? json_decode($row['address_json'], true) : null;
-    return ['id'=>$row['id'],'number'=>$row['number'],'type'=>$row['type'],'status'=>$row['status'],
+    $order = ['id'=>$row['id'],'number'=>$row['number'],'type'=>$row['type'],'status'=>$row['status'],
         'paymentStatus'=>$row['payment_status'],'userId'=>$row['user_id'],
         'customer'=>['name'=>$row['customer_name'],'phone'=>$row['customer_phone'] ?? '', 'telegramUsername'=>$row['telegram_username'] ?? ''],
         'address'=>is_array($address) ? $address : null,'lines'=>$lines,'subtotal'=>(int)$row['subtotal'],
@@ -146,6 +146,9 @@ function admin_order(array $row, array $lines): array
         'shippingName'=>$row['shipping_name'],'payOnDelivery'=>(bool)$row['pay_on_delivery'],
         'payment'=>$row['payment'],'trackingCode'=>$row['tracking_code'],'stockReturned'=>(bool)$row['stock_returned'],
         'createdAt'=>iso_time($row['created_at']),'updatedAt'=>iso_time($row['updated_at'])];
+    if ($row['payment'] === 'bank_transfer') $order['manualPayment'] = manual_payment_details((string)$row['id']);
+    if ($row['payment'] === 'digipay') $order['deliveryReport'] = digipay_delivery_details((string)$row['id']);
+    return $order;
 }
 
 function admin_orders(?array $user): array
@@ -218,15 +221,13 @@ function bootstrap_data(): array
         }
     }
     $smsConfigured = sms_configured();
-    try {
-        payment_require_configured();
-        $paymentConfigured = true;
-    } catch (AppError) {
-        $paymentConfigured = false;
-    }
+    $paymentMethods = payment_methods_public();
+    $paymentConfigured = count(array_filter($paymentMethods,fn(array $method): bool => $method['available'])) > 0;
     return ['configured'=>true,'products'=>admin_products($staffProducts),
         'shipping'=>array_map('admin_shipping',admin_query('SELECT * FROM shipping_methods' . (can('shipping.edit') ? '' : ' WHERE enabled=1') . ' ORDER BY created_at,id')->fetchAll(PDO::FETCH_ASSOC)),
-        'settings'=>admin_settings(),'currentUser'=>$safeUser,'users'=>$users,'roles'=>$roles,
+        'settings'=>admin_settings(),'paymentMethods'=>$paymentMethods,
+        'paymentSettings'=>can('settings.edit',$user) ? payment_options() : null,
+        'currentUser'=>$safeUser,'users'=>$users,'roles'=>$roles,
         'cart'=>$cart,'reservation'=>$reservation,'orders'=>admin_orders($user),'movements'=>$movements,'tickets'=>admin_tickets($user),
         'permissions'=>permissions(),'capabilities'=>['smsConfigured'=>$smsConfigured,'paymentConfigured'=>$paymentConfigured],
         'metadata'=>['ordersLimit'=>500,'ticketsLimit'=>500,'ticketMessagesLimit'=>5000,'usersLimit'=>1000,'movementsLimit'=>1000]];
@@ -675,7 +676,8 @@ function admin_action(string $action, array $input): mixed
     return match($action) {
         'product.save'=>admin_product_save($input), 'product.enabled'=>admin_product_enabled($input),
         'product.delete'=>admin_product_enabled($input,true), 'variant.enabled'=>admin_variant_enabled($input),
-        'settings.save'=>admin_settings_save($input), 'shipping.save'=>admin_shipping_save($input),
+        'settings.save'=>admin_settings_save($input), 'payments.settings'=>payment_settings_save($input),
+        'shipping.save'=>admin_shipping_save($input),
         'shipping.disable'=>admin_shipping_disable($input), 'role.save'=>admin_role_save($input),
         'role.delete'=>admin_role_delete($input), 'user.role'=>admin_user_role($input),
         'user.enabled'=>admin_user_enabled($input),

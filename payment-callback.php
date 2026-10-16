@@ -3,6 +3,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/app/bootstrap.php';
 require_once __DIR__ . '/app/Auth.php';
 require_once __DIR__ . '/app/Commerce.php';
+require_once __DIR__ . '/app/PaymentMethods.php';
+require_once __DIR__ . '/app/Digipay.php';
 require_once __DIR__ . '/app/Payments.php';
 
 header('Content-Type: text/html; charset=utf-8');
@@ -13,10 +15,19 @@ header('X-Frame-Options: SAMEORIGIN');
 
 $receipt = ['success' => false, 'number' => '', 'status' => '', 'paymentStatus' => '', 'message' => 'تأیید پرداخت انجام نشده است.'];
 try {
-    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') {
-        app_error('بازگشت از درگاه باید با درخواست GET انجام شود.', 405);
+    if (defined('DEZHAWO_DIGIPAY_CALLBACK') && DEZHAWO_DIGIPAY_CALLBACK === true) {
+        require_post();
+        if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 16384) {
+            app_error('حجم بازگشت درگاه بیش از حد مجاز است.', 413);
+        }
+        $posted = str_starts_with(strtolower($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json') ? body() : $_POST;
+        $receipt = handle_digipay_callback($posted, $_GET['s'] ?? null);
+    } else {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') {
+            app_error('بازگشت از درگاه باید با درخواست GET انجام شود.', 405);
+        }
+        $receipt = handle_payment_callback($_GET);
     }
-    $receipt = handle_payment_callback($_GET);
 } catch (AppError $error) {
     http_response_code($error->status);
     $receipt['message'] = $error->getMessage();

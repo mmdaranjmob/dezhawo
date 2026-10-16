@@ -1,0 +1,528 @@
+/* DEZHAWO — a quiet, tactile storefront. Shared commerce and admin layouts stay intact. */
+body.luxury-store {
+  --lux-page: #f5f2eb;
+  --lux-ink: #292c28;
+  --lux-muted: #6d7065;
+  --lux-line: #dcd9ce;
+  --lux-gold: #947a49;
+  --lux-label-gold: #82683a;
+  --lux-gold-bright: #ddcba5;
+  --lux-surface: #fffefa;
+  --lux-glass: #fffefa85;
+  --lux-stage: #e9e7df;
+  background: var(--lux-page);
+}
+html[data-theme="dark"] body.luxury-store {
+  --lux-page: #181c19;
+  --lux-ink: #eeeae0;
+  --lux-muted: #b1b3a8;
+  --lux-line: #363d35;
+  --lux-gold: #ceb78a;
+  --lux-label-gold: #ceb78a;
+  --lux-gold-bright: #e7d3a8;
+  --lux-surface: #242b25;
+  --lux-glass: #2b342a90;
+  --lux-stage: #283028;
+}
+body.luxury-store #storeView {
+  --paper: var(--lux-page);
+  --ink: var(--lux-ink);
+  --muted: var(--lux-muted);
+  --line: var(--lux-line);
+  --red: var(--lux-gold);
+  --yellow: var(--lux-gold-bright);
+  color: var(--lux-ink);
+  overflow: clip;
+}
+.luxury-store #storeView .container {width: min(1280px, calc(100% - 112px))}
+.luxury-store #storeView .eyebrow {gap: 13px; color: var(--lux-label-gold); font-size: 10px; font-weight: 500}
+.luxury-store #storeView .eyebrow::before {width: 22px; height: 1px; border-radius: 0; background: currentColor}
+.luxury-store #storeView .eyebrow .en {font-size: 9px; letter-spacing: .14em}
+.luxury-store #storeView .btn {border-radius: 7px; min-height: 52px; padding: 13px 23px; font-size: 12px; font-weight: 500; gap: 27px}
+.luxury-store #storeView .btn-dark {background: #2b3029; color: #f7f3e9; border: 1px solid #4f5749; box-shadow: 0 4px 10px #2630220b}
+.luxury-store #storeView .btn-dark:hover {background: #424a3c; box-shadow: 0 6px 15px #26302216}
+.luxury-store #storeView .btn-light {background: transparent; color: var(--lux-ink); border-color: var(--lux-line)}
+.luxury-store #storeView .btn-light:hover {background: var(--lux-surface)}
+.luxury-store #storeView .btn .icon {width: 19px; height: 19px; stroke-width: 1.2}
+.luxury-store #storeView .btn-text {font-size: 11px; font-weight: 500; gap: 17px}
+.luxury-store #storeView .btn-text .icon {width: 17px; height: 17px; stroke-width: 1.3}
+.luxury-store #storeView .announcement {background: #272d26; color: #e9e7dd; height: 32px; font-size: 9px; gap: 12px; letter-spacing: .1px}
+.luxury-store #storeView .announcement .icon {color: #cfbd97; height: 11px; width: 11px}
+.luxury-store #storeView .announcement span:last-child {font-size: 8px; letter-spacing: .18em; margin-right: 28px; opacity: .6}
+.luxury-store #storeView .hdr {width: min(1376px, calc(100% - 64px)); border-radius: 0; background: transparent; box-shadow: none; border-bottom: 1px solid var(--lux-line)}
+.luxury-store #storeView .util {padding: 0 25px; height: 33px; border-bottom: 1px solid var(--lux-line); color: var(--lux-muted); font-size: 9px}
+.luxury-store #storeView .util button {font-size: 9px}
+.luxury-store #storeView .util-links {gap: 23px}
+.luxury-store #storeView .util-item {gap: 7px}
+.luxury-store #storeView .main-nav {height: 89px; padding: 0 25px; gap: 25px}
+.luxury-store #storeView .brand-name {font-size: 29px; font-weight: 600; letter-spacing: -.8px}
+.luxury-store #storeView .brand-name span {font-size: 12px; vertical-align: top; margin-left: 3px; color: var(--lux-gold)}
+.luxury-store #storeView .brand-tagline {font-size: 8px; color: var(--lux-muted); margin-top: 9px}
+.luxury-store #storeView .nav-links {gap: 30px}
+.luxury-store #storeView .nav-link {font-size: 11px; font-weight: 450; padding-block: 7px; color: var(--lux-ink)}
+.luxury-store #storeView .nav-link:hover {color: var(--lux-gold)}
+.luxury-store #storeView .nav-tools {gap: 3px}
+.luxury-store #storeView .nav-tools button {width: 37px; height: 37px; border-radius: 50%; color: var(--lux-ink)}
+.luxury-store #storeView .nav-tools button:hover {background: var(--lux-glass)}
+.luxury-store #storeView .nav-tools .icon {width: 18px; height: 18px; stroke-width: 1.3}
+.luxury-store #storeView .cart-count {background: #82683a; color: #fff; font-size: 8px; min-width: 13px; height: 13px; line-height: 13px; top: 1px; left: 1px}
+
+/* Hero: editorial type beside a glass display case. */
+.luxury-store #storeView .hero {padding-top: 45px; padding-bottom: 0; min-height: 0}
+.luxury-store #storeView .hero-inner {grid-template-columns: .9fr 1.1fr; gap: 36px; min-height: 610px}
+.luxury-store #storeView .hero-copy {padding: 6px 12px 25px 0}
+.luxury-store #storeView .hero-copy .eyebrow {margin-bottom: 19px; flex-wrap: wrap; gap: 11px}
+.luxury-store #storeView .hero-copy .eyebrow>span:last-child {font-size: 10px; border-right: 1px solid var(--lux-line); padding-right: 11px}
+.luxury-store #storeView .hero h1 {font-size: clamp(58px, 5.45vw, 80px); font-weight: 450; line-height: 1.38; letter-spacing: -3.5px; color: var(--lux-ink)}
+.luxury-store #storeView .hero h1 .line {display: block}
+.luxury-store #storeView .hero h1 .line:nth-child(2)::before {content: none}
+.luxury-store #storeView .hero h1 .accent {color: var(--lux-gold); font-weight: 350}
+.luxury-store #storeView .hero-copy>p {max-width: 365px; margin-top: 24px; font-size: 12px; line-height: 2.15; color: var(--lux-muted)}
+.luxury-store #storeView .hero-actions {gap: 31px; margin-top: 27px}
+.luxury-store #storeView .hero-actions .btn {min-height: 54px; border-radius: 7px; min-width: 174px; justify-content: space-between}
+.luxury-store #storeView .hero-actions .arrow-circle {background: transparent; width: 20px; height: 20px}
+.luxury-store #storeView .hero-actions .arrow-circle .icon {width: 19px; height: 19px}
+.luxury-store #storeView .hero-actions .btn-text .icon {transform: none}
+.luxury-store #storeView .hero-proof {font-size: 8px; gap: 12px; margin-top: 30px; color: var(--lux-muted)}
+.luxury-store #storeView .hero-proof .proof-mark {color: var(--lux-muted); align-items: center}
+.luxury-store #storeView .hero-proof .icon {width: 12px; height: 12px; color: var(--lux-gold)}
+.luxury-store #storeView .proof-separator {height: 9px; background: var(--lux-line)}
+.luxury-store #storeView .hero-mosaic {height: 584px; width: 100%; overflow: visible; margin: 0; mask-image: none; direction: ltr}
+.luxury-stage {position: relative; width: 100%; height: 100%; isolation: isolate; background: radial-gradient(ellipse at 46% 34%, #fffdf3b8, transparent 48%), linear-gradient(139deg, #f8f7f13b, var(--lux-stage)); border: 1px solid #ffffffb8; border-radius: 170px 170px 18px 18px; box-shadow: inset 0 1px 2px #ffffffc9, 0 22px 42px -35px #383b2854; overflow: hidden}
+.luxury-stage::before {content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; background: linear-gradient(125deg, #ffffff60 0, transparent 31%, transparent 72%, #ffffff18); border-radius: inherit}
+.luxury-stage::after {content: ""; position: absolute; inset: 13px; border: 1px solid #ffffff5e; border-radius: 157px 157px 10px 10px; pointer-events: none}
+.luxury-orbit {position: absolute; width: 390px; height: 390px; left: 50%; top: 44%; transform: translate(-50%, -50%); border: 1px solid #b5ae9426; border-radius: 50%; box-shadow: 0 0 0 38px #ffffff12, 0 0 0 39px #b5ae941c, 0 0 0 77px #ffffff08, 0 0 0 78px #b5ae9414}
+.luxury-stage-word {position: absolute; width: 100%; top: 41%; left: 0; text-align: center; font: 500 clamp(45px, 5.5vw, 82px)/1 var(--display); color: #8689741a; letter-spacing: -.06em; transform: rotate(-90deg) translateY(-57%); transform-origin: 50% 50%; white-space: nowrap}
+.luxury-stage-base {position: absolute; width: 77%; height: 110px; bottom: 77px; left: 9%; border-radius: 50%; background: radial-gradient(ellipse, #6e725034, #8083660a 65%, transparent 70%); transform: rotate(-6deg)}
+.luxury-object {position: absolute; z-index: 2; pointer-events: none}
+.luxury-object .product-art {width: 100%; height: 100%; overflow: visible}
+.luxury-object-main {width: 105%; height: 520px; top: 2%; left: -2%; transform: rotate(-8deg); filter: drop-shadow(17px 25px 13px #27302022)}
+.luxury-object-audio {width: 52%; height: 247px; bottom: 30px; right: -2%; z-index: 4; transform: rotate(5deg); filter: drop-shadow(0 12px 12px #27302017)}
+.luxury-object-charger {width: 34%; height: 180px; top: 35px; left: -2%; z-index: 3; transform: rotate(-7deg); opacity: .85; filter: drop-shadow(5px 13px 8px #27302012)}
+.luxury-feature-card {position: absolute; display: flex; align-items: center; gap: 11px; z-index: 5; direction: rtl; background: linear-gradient(133deg, #ffffffad, #fffffa49); border: 1px solid #ffffffc7; border-bottom-color: #ffffff7a; border-right-color: #ffffffa3; border-radius: 13px; padding: 15px 18px; box-shadow: inset 0 0 0 1px #ffffff16, 0 15px 30px -24px #34402d60; backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); color: #3b4034}
+.luxury-feature-card.feature-top {top: 62px; right: 22px; transform: rotate(3deg)}
+.luxury-feature-card.feature-bottom {bottom: 85px; left: 23px; transform: rotate(-4deg)}
+.luxury-feature-card strong {display: block; font-size: 11px; font-weight: 500}
+.luxury-feature-card small {display: block; font-size: 8px; color: #6a705f; margin-top: 3px}
+.luxury-feature-card.feature-top small {font: 500 7px/1.7 var(--display); letter-spacing: .09em; margin-bottom: 4px}
+.luxury-detail-icon {width: 31px; height: 31px; color: #8f7b50; border: 1px solid #b8ae9166; border-radius: 50%; padding: 7px}
+.luxury-detail-icon .icon {width: 15px; height: 15px; stroke-width: 1.2}
+.luxury-detail-swatches {display: flex; direction: ltr; padding-right: 7px}
+.luxury-detail-swatches i {width: 17px; height: 17px; border-radius: 50%; border: 2px solid #f7f6ee; margin-right: -6px; background: #353d33; box-shadow: 0 1px 3px #202a1a25}
+.luxury-detail-swatches i:nth-child(2) {background: #bca780}
+.luxury-detail-swatches i:nth-child(3) {background: #8d9687}
+.luxury-stage-caption {position: absolute; bottom: 24px; right: 30px; left: 30px; display: flex; align-items: center; justify-content: space-between; color: #626b58; font: 400 8px/1.5 var(--display); letter-spacing: .12em; z-index: 6; border-top: 1px solid #9aa18c33; padding-top: 13px}
+.luxury-stage-caption span:last-child {font-family: var(--sans); letter-spacing: 0; font-size: 9px}
+.luxury-store #storeView .hero-bottom {border-top: 1px solid var(--lux-line); margin-top: 30px; padding: 21px 0; font-size: 9px; color: var(--lux-muted)}
+.luxury-store #storeView .hero-bottom .en {font-size: 8px; letter-spacing: .13em}
+.luxury-store #storeView .scroll-link {gap: 10px}
+.luxury-store #storeView .scroll-link .icon {width: 14px; height: 14px; transform: rotate(-90deg)}
+
+/* A restrained collection index; the products remain server-backed. */
+.luxury-store #storeView .categories {padding: 39px 0 83px}
+.category-intro {display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: var(--lux-muted); margin-bottom: 22px}
+.category-intro .en {font-size: 8px; letter-spacing: .16em}
+.luxury-store #storeView .category-grid {border: 1px solid var(--lux-line); border-radius: 10px; background: linear-gradient(140deg, var(--lux-glass), transparent); overflow: hidden}
+.luxury-store #storeView .category-card {padding: 25px 10px 24px; gap: 9px; background: transparent; border-color: var(--lux-line); color: var(--lux-ink); transition: background .25s}
+.luxury-store #storeView .category-card:hover {background: var(--lux-surface)}
+.luxury-store #storeView .category-card .icon {width: 28px; height: 28px; stroke-width: 1.1; color: var(--lux-gold); margin-bottom: 6px}
+.luxury-store #storeView .category-card span {font-size: 11px; font-weight: 450}
+.luxury-store #storeView .category-card small {font-size: 7px; letter-spacing: .13em; color: var(--lux-muted)}
+.luxury-store #storeView .catalog {padding-bottom: 88px; scroll-margin-top: 35px}
+.luxury-store #storeView .section-head {margin-bottom: 30px; align-items: center}
+.luxury-store #storeView .section-head .eyebrow {margin-bottom: 13px}
+.luxury-store #storeView .section-head h2 {font-size: 33px; font-weight: 450; letter-spacing: -1px}
+.luxury-store #storeView .section-head p {font-size: 11px; margin-top: 9px; color: var(--lux-muted)}
+.luxury-store #storeView .section-index {font-size: 8px; letter-spacing: .12em; color: var(--lux-muted)}
+.luxury-store #storeView .catalog-controls {border-bottom: 1px solid var(--lux-line); margin-top: 0; margin-bottom: 29px; padding-bottom: 17px; gap: 12px}
+.luxury-store #storeView .filters {gap: 7px; min-width: 0}
+.luxury-store #storeView .filter-btn {border-radius: 5px; padding: 8px 14px; font-size: 10px; font-weight: 400; color: var(--lux-muted); background: transparent; border: 1px solid transparent}
+.luxury-store #storeView .filter-btn:hover {color: var(--lux-ink); background: var(--lux-glass)}
+.luxury-store #storeView .filter-btn.active {color: var(--lux-ink); background: var(--lux-glass); border-color: var(--lux-line)}
+.luxury-store #storeView .catalog-sort {background: transparent; border: 0; color: var(--lux-muted); font-size: 9px; padding: 8px 3px; max-width: 180px}
+.luxury-store #storeView .product-grid {grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 31px 23px}
+.luxury-store #storeView .product-card {min-width: 0}
+.luxury-store #storeView .product-image {height: auto; aspect-ratio: 1 / 1.06; border-radius: 10px; border: 1px solid #ffffffa6; background: radial-gradient(ellipse at 45% 28%, #fffefc, #e9e8e0 85%); box-shadow: inset 0 1px 3px #ffffff8a; overflow: hidden; transition: box-shadow .3s}
+.luxury-store #storeView .product-image[data-art="case"] {background: radial-gradient(ellipse at 45% 28%, #f5f3e9, #e6e5db 85%)}
+.luxury-store #storeView .product-image[data-art="telegram"] {background: radial-gradient(ellipse at 45% 28%, #ecf0ea, #d7dfd6 85%)}
+.luxury-store #storeView .product-card:hover .product-image {box-shadow: inset 0 1px 3px #ffffff8a, 0 10px 25px -15px #424b3152}
+.luxury-store #storeView .product-open {height: 100%; width: 100%; display: flex; align-items: center; justify-content: center; background: transparent}
+.luxury-store #storeView .product-open .product-art {width: 100%; height: 100%; transition: transform .5s cubic-bezier(.2,.6,.3,1)}
+.luxury-store #storeView .product-card:hover .product-open .product-art {transform: scale(1.055) translateY(-4px)}
+.luxury-store #storeView .product-badge {top: 14px; right: 13px; border-radius: 4px; border: 1px solid #e6e3d5; background: #fffdf4bb; font-size: 8px; font-weight: 400; padding: 4px 9px; color: #62654e; backdrop-filter: blur(10px)}
+.luxury-store #storeView .favorite-btn {top: 12px; left: 12px; width: 29px; height: 29px; border-radius: 50%; border: 1px solid #ffffffa1; background: #ffffff75; color: #5c6252; backdrop-filter: blur(10px)}
+.luxury-store #storeView .favorite-btn .icon {width: 15px; height: 15px; stroke-width: 1.3}
+.luxury-store #storeView .favorite-btn.active {color: #9b7d43; background: #fff7e3}
+.luxury-store #storeView .product-details {padding: 17px 2px 5px}
+.luxury-store #storeView .product-category {font-size: 8px; color: var(--lux-muted); margin-bottom: 7px}
+.luxury-store #storeView .product-title {font-size: 12px; font-weight: 500; line-height: 1.8; text-align: right; color: var(--lux-ink); padding: 0}
+.luxury-store #storeView .product-bottom {margin-top: 15px; align-items: center; gap: 8px}
+.luxury-store #storeView .product-price {font-size: 12px; font-weight: 500; color: var(--lux-ink)}
+.luxury-store #storeView .currency {font-size: 9px; font-weight: 400; color: var(--lux-muted); margin-right: 3px}
+.luxury-store #storeView .color-dot {width: 8px; height: 8px; box-shadow: 0 0 0 2px var(--lux-page); border: 1px solid #989b8b66}
+.luxury-store #storeView .catalog-end {margin-top: 35px}
+.luxury-store #storeView .search-box {border: 1px solid var(--lux-line); border-radius: 7px; background: var(--lux-surface); margin-bottom: 25px}
+.luxury-store #storeView .search-box input {color: var(--lux-ink); background: transparent}
+.luxury-store #storeView .empty-state {border: 1px solid var(--lux-line); border-radius: 12px; padding: 45px 25px; background: linear-gradient(140deg, var(--lux-glass), transparent)}
+.luxury-store #storeView .empty-state h3 {font-weight: 450; font-size: 18px}
+.luxury-store #storeView .empty-state>svg {width: 26px; height: 26px; color: var(--lux-gold)}
+.luxury-store #storeView .empty-state p {color: var(--lux-muted); font-size: 11px}
+
+/* Brand story: two smoked glass slabs, drawn without external assets. */
+.luxury-store #storeView .story {border-radius: 12px; background: #293028; color: #efece2; min-height: 500px; margin-bottom: 82px; grid-template-columns: 1fr 1fr; border: 1px solid #3e473a; isolation: isolate; overflow: hidden}
+.luxury-store #storeView .story-copy {padding: 60px 58px 55px 32px; position: relative; z-index: 2}
+.luxury-store #storeView .story .eyebrow {color: #cfbd94}
+.luxury-store #storeView .story h2 {font-size: 35px; font-weight: 400; line-height: 1.65; margin-top: 20px; letter-spacing: -1px; color: #f0ece0}
+.luxury-store #storeView .story-copy>p {font-size: 11px; color: #b9c0ad; line-height: 2.15; margin-top: 20px; max-width: 370px}
+.luxury-store #storeView .story-copy>p+p {margin-top: 13px}
+.luxury-store #storeView .story .btn-text {margin-top: 24px; color: #dccba5}
+.luxury-store #storeView .story-art {position: relative; overflow: hidden; min-height: 480px; background: radial-gradient(ellipse at 47% 59%, #77826835, transparent 64%); display: block}
+.story-orbit {position: absolute; width: 360px; height: 360px; border: 1px solid #b9c2a621; border-radius: 50%; top: 60px; left: calc(50% - 180px); transform: rotateX(22deg); box-shadow: 0 0 0 43px #b9c2a608, 0 0 0 44px #b9c2a60b}
+.story-glass {position: absolute; width: 205px; height: 280px; border-radius: 22px; top: 100px; left: calc(50% - 125px); border: 1px solid #e4e7d95e; background: linear-gradient(130deg, #e0e2c823, #d1d4b305 32%, #1b261a11 60%, #d6dbc02e); box-shadow: inset 1px 1px 3px #f3f6e756, inset -1px -1px 3px #090f071a, 15px 25px 40px #0f160c37; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px)}
+.story-glass-back {transform: rotate(22deg) translateX(40px) translateY(-17px); border-color: #c9d0b84d; background: linear-gradient(137deg, #b1bca817, #a6af9730 48%, #cbd3be0d)}
+.story-glass-front {transform: rotate(-16deg); padding: 23px; display: flex; flex-direction: column; justify-content: space-between}
+.luxury-store #storeView .story-glass-front>.en {font-size: 105px; font-weight: 300; color: #e4e3d896; line-height: 1; text-shadow: 1px 1px #ffffff30; letter-spacing: -.04em; transform: none}
+.luxury-store #storeView .story-glass-front .glass-signature {font-size: 10px; font-weight: 400; letter-spacing: .17em; line-height: 1.7; color: #dce1cc; direction: ltr; transform: none}
+.luxury-store #storeView .story-art-note {position: absolute; bottom: 48px; left: 50%; transform: translateX(-50%); font-size: 8px; font-weight: 400; line-height: 1.6; letter-spacing: .18em; color: #bdc6ac; white-space: nowrap}
+.luxury-store #storeView .story-coordinate {position: absolute; top: 45px; left: 22px; writing-mode: vertical-rl; font-size: 7px; font-weight: 400; line-height: 1.6; letter-spacing: .15em; color: #a7b39866; transform: none}
+
+/* Service values are practical promises, not invented social proof. */
+.values-section {padding-bottom: 77px}
+.values-heading {margin-bottom: 31px}
+.values-heading .eyebrow {margin-bottom: 15px}
+.values-heading h2 {font-size: 29px; font-weight: 450; letter-spacing: -.7px}
+.luxury-store #storeView .values {width: 100%; padding-bottom: 0; gap: 30px; grid-template-columns: repeat(4, minmax(0, 1fr))}
+.luxury-store #storeView .value-item {position: relative; border-top: 1px solid var(--lux-line); padding-top: 26px}
+.luxury-store #storeView .value-item .icon {height: 25px; width: 25px; stroke-width: 1.15; color: var(--lux-gold); margin-bottom: 19px}
+.value-number {position: absolute; top: 28px; left: 0; font-size: 9px; color: var(--lux-muted)}
+.luxury-store #storeView .value-item h3 {font-weight: 500; font-size: 13px; margin-bottom: 10px}
+.luxury-store #storeView .value-item p {font-size: 10px; line-height: 2.1; color: var(--lux-muted); max-width: 240px}
+
+/* Digital collection, presented as a separate material and colour story. */
+.luxury-store #storeView .digital {padding-bottom: 82px}
+.luxury-store #storeView .digital-banner {padding: 53px 60px; border-radius: 12px; background: #e4e7dd; border: 1px solid #d5dacb; grid-template-columns: 1fr .9fr; min-height: 390px; gap: 20px; overflow: hidden; isolation: isolate}
+.luxury-store #storeView .digital-banner::after {display: none}
+.luxury-store #storeView .digital-copy {position: relative; z-index: 3}
+.luxury-store #storeView .digital-banner .eyebrow {color: #5c6650}
+.luxury-store #storeView .digital-banner h2 {font-weight: 400; font-size: 36px; line-height: 1.6; color: #343e30; letter-spacing: -1px; margin: 17px 0 13px}
+.luxury-store #storeView .digital-banner h2 span {color: #7b8369}
+.luxury-store #storeView .digital-banner p {max-width: 360px; color: #5c6650; font-size: 11px; line-height: 2.15}
+.luxury-store #storeView .digital-banner .btn {margin-top: 23px; min-height: 48px; font-size: 11px; gap: 22px}
+.digital-edition {display: block; margin-top: 25px; font-size: 7px; letter-spacing: .16em; color: #626b58}
+.luxury-store #storeView .digital-art {position: relative; height: 300px; min-width: 0; display: flex; align-items: center; justify-content: center; margin: 0; isolation: isolate}
+.luxury-store #storeView .digital-art .product-art {position: relative; width: 350px; height: 330px; z-index: 2; transform: rotate(-10deg); filter: drop-shadow(12px 23px 15px #3f523127)}
+.digital-orbit {position: absolute; width: 280px; height: 280px; border: 1px solid #a7b49b5e; border-radius: 50%; top: 13px; left: calc(50% - 140px); box-shadow: 0 0 0 24px #ffffff20, 0 0 0 25px #a7b49b20}
+.luxury-store #storeView .digital-art .floating-label {position: absolute; z-index: 3; left: 15px; bottom: 14px; background: #ffffff69; border: 1px solid #ffffffad; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); color: #5d694f; font-size: 9px; padding: 13px 19px; border-radius: 9px; transform: rotate(-5deg); display: flex; align-items: center; gap: 8px; box-shadow: 0 10px 22px -17px #3c4e305e}
+.luxury-store #storeView .floating-label .icon {width: 15px; height: 15px; color: #8c936e}
+
+/* The circle leads into the real, shared mobile authentication flow. */
+.membership {position: relative; overflow: hidden; isolation: isolate; display: flex; justify-content: space-between; align-items: center; gap: 35px; padding: 44px 52px; border: 1px solid var(--lux-line); border-radius: 12px; background: linear-gradient(115deg, #cbbfa526, #fffffb5e 55%, #e5e1d742); margin-bottom: 52px}
+.membership-aura {position: absolute; top: -148px; left: 10%; width: 420px; height: 420px; border-radius: 50%; border: 1px solid #bdb19238; box-shadow: 0 0 0 23px #ffffff18, 0 0 0 24px #bdb1921f, 0 0 0 56px #ffffff13, 0 0 0 57px #bdb19215; z-index: -1; transform: rotateX(25deg)}
+.membership-copy .eyebrow {font-size: 8px!important; letter-spacing: .18em}
+.membership h2 {font-size: 28px; font-weight: 450; margin: 15px 0 12px; letter-spacing: -.7px}
+.membership p {font-size: 11px; color: var(--lux-muted); line-height: 2.1}
+.membership-action {display: flex; flex-direction: column; align-items: center; gap: 13px; flex-shrink: 0}
+.membership-action>span {font-size: 8px; color: var(--lux-muted)}
+
+.luxury-store #storeView .footer {padding-bottom: 20px; border-top: 0}
+.luxury-store #storeView .newsletter {padding: 29px 0 36px; margin-bottom: 39px; border-top: 0; border-bottom: 1px solid var(--lux-line); gap: 20px; align-items: center}
+.footer-kicker {display: block; font-size: 7px; letter-spacing: .18em; color: var(--lux-label-gold); margin-bottom: 9px}
+.luxury-store #storeView .newsletter h3 {font-size: 19px; font-weight: 450}
+.luxury-store #storeView .newsletter p {font-size: 10px; margin-top: 8px; color: var(--lux-muted)}
+.luxury-store #storeView .newsletter .btn {min-height: 45px; font-size: 10px; gap: 23px}
+.luxury-store #storeView .footer-grid {grid-template-columns: 1.7fr 1fr 1.2fr 1.15fr; gap: 40px}
+.luxury-store #storeView .footer-brand .brand-name {font-size: 33px; font-weight: 500; margin-bottom: 20px; color: var(--lux-ink)}
+.luxury-store #storeView .footer-brand p {font-size: 10px; color: var(--lux-muted); line-height: 2.1; max-width: 250px}
+.luxury-store #storeView .footer h3 {font-size: 11px; font-weight: 500; margin-bottom: 17px; color: var(--lux-ink)}
+.luxury-store #storeView .footer-links {gap: 10px; font-size: 10px; color: var(--lux-muted)}
+.luxury-store #storeView .footer-links button {text-align: right; font-size: inherit}
+.luxury-store #storeView .footer-links a:hover, .luxury-store #storeView .footer-links button:hover {color: var(--lux-gold)}
+.luxury-store #storeView .footer-contact {font-size: 10px; line-height: 2.1; color: var(--lux-muted)}
+.luxury-store #storeView .footer-contact a {display: inline-block; margin-bottom: 7px}
+.luxury-store #storeView .enamad-link {margin-top: 12px; padding: 9px 11px; font-size: 9px; color: var(--lux-muted); border: 1px solid var(--lux-line); border-radius: 5px; background: transparent}
+.luxury-store #storeView .footer-bottom {font-size: 8px; margin-top: 37px; padding-top: 20px; color: var(--lux-muted); border-top: 1px solid var(--lux-line)}
+.luxury-store #storeView .footer-bottom .en {font-size: 8px; letter-spacing: .15em}
+.luxury-store #storeView .footer-bottom button {font-size: 8px}
+
+/* Dark appearance follows the same materials and hierarchy. */
+html[data-theme="dark"] .luxury-stage {background: radial-gradient(ellipse at 42% 30%, #6e79543f, transparent 57%), linear-gradient(140deg, #30392d, #222a22); border-color: #6b76534f; box-shadow: inset 0 1px 2px #c7d0a821, 0 22px 42px -35px #060b0454}
+html[data-theme="dark"] .luxury-stage::before {background: linear-gradient(125deg, #d3daba13, transparent 37%, transparent 72%, #d3daba06)}
+html[data-theme="dark"] .luxury-stage::after {border-color: #bdc6a01a}
+html[data-theme="dark"] .luxury-stage-word {color: #cbd4b410}
+html[data-theme="dark"] .luxury-orbit {border-color: #9aa88424; box-shadow: 0 0 0 38px #ffffff03, 0 0 0 39px #b5ae9412, 0 0 0 77px #ffffff02, 0 0 0 78px #b5ae940b}
+html[data-theme="dark"] .luxury-feature-card {background: linear-gradient(133deg, #5c665570, #343f2d8f); border-color: #aab79455; color: #e3e7d8; box-shadow: inset 0 0 0 1px #ffffff03, 0 15px 30px -24px #000000c0}
+html[data-theme="dark"] .luxury-feature-card small {color: #b1b9a1}
+html[data-theme="dark"] .luxury-detail-icon {color: #c5b58a; border-color: #b8ae915c}
+html[data-theme="dark"] .luxury-detail-swatches i {border-color: #59634d}
+html[data-theme="dark"] .luxury-stage-caption {color: #aab59a; border-color: #a1ac8e2b}
+html[data-theme="dark"] .luxury-store #storeView .product-image {background: radial-gradient(ellipse at 45% 28%, #434b3b, #30382c 85%); border-color: #66715736}
+html[data-theme="dark"] .luxury-store #storeView .product-image[data-art="case"] {background: radial-gradient(ellipse at 45% 28%, #48513d, #343d2d 85%)}
+html[data-theme="dark"] .luxury-store #storeView .product-image[data-art="telegram"] {background: radial-gradient(ellipse at 45% 28%, #354f42, #273d31 85%)}
+html[data-theme="dark"] .luxury-store #storeView .product-badge {background: #47513dcc; border-color: #7d876c5c; color: #d7ddcb}
+html[data-theme="dark"] .luxury-store #storeView .favorite-btn {background: #4b5642ad; border-color: #8e9a7c4d; color: #d5dfc8}
+html[data-theme="dark"] .luxury-store #storeView .favorite-btn.active {background: #746a45; color: #f0dcac}
+html[data-theme="dark"] .luxury-store #storeView .cart-count {background: var(--lux-gold); color: #181c19}
+html[data-theme="dark"] .luxury-store #storeView .story {background: #232c22; border-color: #3d4838}
+html[data-theme="dark"] .luxury-store #storeView .digital-banner {background: #2d3a2e; border-color: #43503d}
+html[data-theme="dark"] .luxury-store #storeView .digital-banner h2 {color: #e3e8d8}
+html[data-theme="dark"] .luxury-store #storeView .digital-banner h2 span {color: #bcc8a6}
+html[data-theme="dark"] .luxury-store #storeView .digital-banner p, html[data-theme="dark"] .luxury-store #storeView .digital-banner .eyebrow {color: #b0bea0}
+html[data-theme="dark"] .digital-edition {color: #95a486}
+html[data-theme="dark"] .luxury-store #storeView .digital-art .floating-label {background: #62765054; border-color: #aab9944d; color: #d7e3c7}
+html[data-theme="dark"] .membership {background: linear-gradient(115deg, #77734f1f, #39412c4f 55%, #343a2a42)}
+
+@media (max-width: 1150px) {
+  .luxury-store #storeView .container {width: calc(100% - 72px)}
+  .luxury-store #storeView .hero-inner {gap: 12px; min-height: 560px}
+  .luxury-store #storeView .hero-mosaic {height: 530px}
+  .luxury-store #storeView .hero h1 {font-size: 67px}
+  .luxury-store #storeView .hero-copy {padding-right: 0}
+  .luxury-store #storeView .hero-copy .eyebrow>span:last-child {display: none}
+  .luxury-store #storeView .hero-actions {gap: 22px}
+  .luxury-store #storeView .hero-proof {font-size: 7px; gap: 8px}
+  .luxury-store #storeView .nav-links {gap: 20px}
+  .luxury-store #storeView .main-nav {padding-inline: 16px; gap: 15px}
+  .luxury-store #storeView .brand-name {font-size: 26px}
+  .luxury-store #storeView .nav-link {font-size: 10px}
+  .luxury-object-main {top: 3%; height: 465px; width: 117%; left: -8%}
+  .luxury-object-audio {bottom: 25px; width: 57%; right: -4%}
+  .luxury-feature-card {padding: 12px 13px; gap: 8px}
+  .luxury-feature-card.feature-top {right: 13px; top: 55px}
+  .luxury-feature-card.feature-bottom {left: 12px; bottom: 78px}
+  .luxury-feature-card strong {font-size: 10px}
+  .luxury-feature-card small {font-size: 7px}
+  .luxury-orbit {width: 315px; height: 315px}
+  .luxury-store #storeView .filters {gap: 0}
+  .luxury-store #storeView .filter-btn {font-size: 9px; padding: 7px 10px}
+  .luxury-store #storeView .product-grid {gap: 24px 16px}
+  .luxury-store #storeView .story-copy {padding: 43px 35px}
+  .luxury-store #storeView .story h2 {font-size: 30px}
+  .luxury-store #storeView .digital-banner {padding: 43px 40px}
+  .luxury-store #storeView .footer-grid {gap: 25px}
+}
+
+@media (max-width: 900px) and (min-width: 701px) {
+  .luxury-store #storeView .nav-links {gap: 14px}
+  .luxury-store #storeView .nav-link {font-size: 9px}
+  .luxury-store #storeView .brand-name {font-size: 23px}
+  .luxury-store #storeView .nav-tools {gap: 0}
+  .luxury-store #storeView .nav-tools button {width: 31px}
+  .luxury-store #storeView .hero-inner {grid-template-columns: 1fr 1fr}
+  .luxury-store #storeView .hero h1 {font-size: 59px}
+  .luxury-store #storeView .hero-copy>p {font-size: 10px}
+  .luxury-store #storeView .hero-actions {gap: 15px}
+  .luxury-store #storeView .hero-actions .btn {min-width: 148px; font-size: 10px; padding-inline: 17px}
+  .luxury-store #storeView .hero-actions .btn-text {font-size: 10px; gap: 8px}
+  .luxury-store #storeView .hero-proof {flex-wrap: wrap; max-width: 240px; row-gap: 7px}
+  .luxury-feature-card.feature-top {right: 8px; top: 54px}
+  .luxury-feature-card.feature-bottom {left: 9px; bottom: 96px; max-width: 175px}
+  .luxury-detail-icon {display: none}
+  .luxury-store #storeView .product-grid {grid-template-columns: repeat(3,minmax(0,1fr))}
+  .luxury-store #storeView .catalog-controls {flex-direction: column; align-items: stretch}
+  .luxury-store #storeView .catalog-sort {align-self: flex-end}
+  .luxury-store #storeView .story-copy {padding: 36px 28px}
+  .luxury-store #storeView .story h2 {font-size: 26px}
+  .luxury-store #storeView .story-copy>p {font-size: 10px}
+  .story-glass {left: calc(50% - 115px); width: 180px; height: 260px}
+  .luxury-store #storeView .digital-banner {padding: 35px 30px}
+  .luxury-store #storeView .digital-banner h2 {font-size: 29px}
+  .membership {padding: 37px 32px; gap: 20px}
+  .membership h2 {font-size: 24px}
+  .membership p {font-size: 10px}
+  .membership-action .btn {font-size: 10px!important; padding-inline: 16px!important; gap: 15px!important}
+}
+
+@media (max-width: 700px) {
+  .luxury-store #storeView .container {width: calc(100% - 36px)}
+  .luxury-store #storeView .announcement {height: 29px; font-size: 8px}
+  .luxury-store #storeView .announcement span:last-child {display: none}
+  .luxury-store #storeView .hdr {width: calc(100% - 28px); border-radius: 0}
+  .luxury-store #storeView .util {display: none}
+  .luxury-store #storeView .main-nav {height: 77px; padding: 0 4px; gap: 8px}
+  .luxury-store #storeView .brand-name {font-size: 24px; letter-spacing: -.9px}
+  .luxury-store #storeView .brand-name span {font-size: 9px; margin-left: 1px}
+  .luxury-store #storeView .brand-tagline {font-size: 6px; margin-top: 8px; letter-spacing: 0}
+  .luxury-store #storeView .nav-tools {gap: 0}
+  .luxury-store #storeView .nav-tools button {width: 32px; height: 34px; padding: 0}
+  .luxury-store #storeView .nav-tools .icon {width: 17px; height: 17px}
+  .luxury-store #storeView .nav-links {top: 77px; background: var(--lux-surface); border: 1px solid var(--lux-line); border-top: 0; border-radius: 0 0 10px 10px; padding: 12px 18px 18px; box-shadow: 0 22px 25px #1e271117; z-index: 10}
+  .luxury-store #storeView .nav-link {font-size: 12px; padding: 11px 7px}
+  .luxury-store #storeView .hero {padding-top: 30px}
+  .luxury-store #storeView .hero-inner {display: flex; flex-direction: column; gap: 18px; align-items: stretch; min-height: 0}
+  .luxury-store #storeView .hero-copy {padding: 0 9px}
+  .luxury-store #storeView .hero-copy .eyebrow {margin-bottom: 16px; gap: 10px}
+  .luxury-store #storeView .hero-copy .eyebrow>span:last-child {display: inline; font-size: 8px; padding-right: 9px}
+  .luxury-store #storeView .hero-copy .eyebrow .en {font-size: 7px; letter-spacing: .12em}
+  .luxury-store #storeView .eyebrow::before {width: 17px}
+  .luxury-store #storeView .hero h1 {font-size: 60px; letter-spacing: -2.6px; line-height: 1.45}
+  .luxury-store #storeView .hero h1 .line {display: inline}
+  .luxury-store #storeView .hero h1 .line:nth-child(2)::before {content: " "}
+  .luxury-store #storeView .hero h1 .accent {display: block}
+  .luxury-store #storeView .hero-copy>p {font-size: 11px; line-height: 2.05; max-width: 350px; margin-top: 18px}
+  .luxury-store #storeView .hero-actions {margin-top: 22px; gap: 25px}
+  .luxury-store #storeView .hero-actions .btn {min-height: 49px; min-width: 165px; font-size: 11px; border-radius: 6px}
+  .luxury-store #storeView .hero-actions .btn-text {font-size: 10px}
+  .luxury-store #storeView .hero-proof {font-size: 7px; gap: 9px; margin-top: 24px; flex-wrap: wrap; row-gap: 8px}
+  .luxury-store #storeView .hero-mosaic {height: 475px; margin: 8px 0 0; width: 100%}
+  .luxury-stage {border-radius: 135px 135px 12px 12px}
+  .luxury-stage::after {inset: 10px; border-radius: 125px 125px 6px 6px}
+  .luxury-orbit {width: 300px; height: 300px; top: 42%}
+  .luxury-stage-word {font-size: 65px; top: 40%}
+  .luxury-object-main {width: 114%; height: 435px; top: 0; left: -7%; transform: rotate(-8deg)}
+  .luxury-object-audio {width: 59%; height: 202px; bottom: 27px; right: -3%}
+  .luxury-object-charger {width: 34%; height: 145px; top: 21px; left: -2%}
+  .luxury-feature-card {padding: 12px 13px; border-radius: 10px; gap: 8px}
+  .luxury-feature-card.feature-top {top: 53px; right: 10px}
+  .luxury-feature-card.feature-bottom {bottom: 81px; left: 10px}
+  .luxury-feature-card strong {font-size: 9px}
+  .luxury-feature-card small {font-size: 7px}
+  .luxury-feature-card.feature-top small {font-size: 6px}
+  .luxury-detail-icon {width: 27px; height: 27px; padding: 5px}
+  .luxury-stage-caption {bottom: 19px; right: 22px; left: 22px; font-size: 6px; padding-top: 11px; letter-spacing: .09em}
+  .luxury-stage-caption span:last-child {font-size: 8px}
+  .luxury-store #storeView .hero-bottom {margin-top: 22px; padding: 17px 0; font-size: 8px; gap: 13px}
+  .luxury-store #storeView .hero-bottom .en {font-size: 6px; max-width: 126px; line-height: 1.8; text-align: left; letter-spacing: .08em}
+  .luxury-store #storeView .categories {padding-top: 26px; padding-bottom: 49px}
+  .category-intro {font-size: 9px; margin-bottom: 16px}
+  .category-intro .en {font-size: 6px; letter-spacing: .13em}
+  .luxury-store #storeView .category-grid {border-radius: 8px; grid-template-columns: repeat(3,1fr)}
+  .luxury-store #storeView .category-card {padding: 19px 6px 17px; gap: 6px}
+  .luxury-store #storeView .category-card .icon {width: 25px; height: 25px; margin-bottom: 4px}
+  .luxury-store #storeView .category-card span {font-size: 10px}
+  .luxury-store #storeView .category-card small {font-size: 6px; letter-spacing: .1em}
+  .luxury-store #storeView .catalog {padding-bottom: 46px}
+  .luxury-store #storeView .section-head {align-items: start; gap: 15px; margin-bottom: 23px}
+  .luxury-store #storeView .section-head .eyebrow {font-size: 9px; margin-bottom: 11px}
+  .luxury-store #storeView .section-head h2 {font-size: 25px; letter-spacing: -.7px}
+  .luxury-store #storeView .section-head p {font-size: 9px; max-width: 225px; margin-top: 8px; line-height: 1.9}
+  .luxury-store #storeView .section-index {font-size: 6px; max-width: 84px; text-align: left; line-height: 1.8; letter-spacing: .1em; white-space: normal; padding-top: 4px}
+  .luxury-store #storeView .catalog-controls {margin-bottom: 22px; padding-bottom: 12px; gap: 9px; flex-direction: column; align-items: stretch}
+  .luxury-store #storeView .filters {gap: 3px; padding-bottom: 5px; overflow: auto; width: 100%; scrollbar-width: thin; scrollbar-color: var(--lux-line) transparent}
+  .luxury-store #storeView .filter-btn {font-size: 9px; padding: 7px 11px; flex-shrink: 0; white-space: nowrap}
+  .luxury-store #storeView .catalog-sort {font-size: 9px; align-self: flex-end}
+  .luxury-store #storeView .product-grid {grid-template-columns: repeat(2,minmax(0,1fr)); gap: 23px 12px}
+  .luxury-store #storeView .product-image {height: auto; aspect-ratio: 1 / 1.12; border-radius: 8px}
+  .luxury-store #storeView .product-badge {font-size: 7px; top: 9px; right: 8px; padding: 3px 6px; border-radius: 3px; max-width: calc(100% - 43px)}
+  .luxury-store #storeView .favorite-btn {width: 25px; height: 25px; top: 8px; left: 7px}
+  .luxury-store #storeView .favorite-btn .icon {width: 13px; height: 13px}
+  .luxury-store #storeView .product-details {padding: 12px 1px 1px}
+  .luxury-store #storeView .product-category {font-size: 7px; margin-bottom: 5px}
+  .luxury-store #storeView .product-title {font-size: 10px; line-height: 1.9}
+  .luxury-store #storeView .product-bottom {margin-top: 10px; flex-wrap: wrap; gap: 8px; align-items: center}
+  .luxury-store #storeView .product-price {font-size: 10px}
+  .luxury-store #storeView .currency {font-size: 7px; margin-right: 2px}
+  .luxury-store #storeView .color-dot {width: 7px; height: 7px}
+  .luxury-store #storeView .catalog-end {margin-top: 28px}
+  .luxury-store #storeView .catalog-end .btn {font-size: 10px; min-height: 45px}
+  .luxury-store #storeView .story {grid-template-columns: 1fr; border-radius: 9px; margin-bottom: 48px; min-height: 0}
+  .luxury-store #storeView .story-copy {padding: 34px 27px 0}
+  .luxury-store #storeView .story h2 {font-size: 29px; line-height: 1.6; margin-top: 17px}
+  .luxury-store #storeView .story-copy>p {font-size: 10px; line-height: 2.1; margin-top: 17px; max-width: 100%}
+  .luxury-store #storeView .story-copy>p+p {margin-top: 12px}
+  .luxury-store #storeView .story .btn-text {margin-top: 19px; font-size: 10px}
+  .luxury-store #storeView .story-art {min-height: 360px}
+  .story-orbit {width: 270px; height: 270px; top: 50px; left: calc(50% - 135px)}
+  .story-glass {width: 165px; height: 228px; top: 57px; left: calc(50% - 103px); border-radius: 18px}
+  .story-glass-front {padding: 20px}
+  .luxury-store #storeView .story-glass-front>.en {font-size: 86px}
+  .luxury-store #storeView .story-glass-front .glass-signature {font-size: 8px}
+  .luxury-store #storeView .story-art-note {font-size: 6px; bottom: 33px}
+  .luxury-store #storeView .story-coordinate {font-size: 6px; top: 48px; left: 17px}
+  .values-section {padding-bottom: 45px}
+  .values-heading {margin-bottom: 25px}
+  .values-heading .eyebrow {font-size: 9px; margin-bottom: 13px}
+  .values-heading h2 {font-size: 24px; letter-spacing: -.7px}
+  .luxury-store #storeView .values {grid-template-columns: repeat(2,minmax(0,1fr)); gap: 26px 23px; padding-bottom: 0}
+  .luxury-store #storeView .value-item {padding-top: 21px}
+  .luxury-store #storeView .value-item .icon {width: 23px; height: 23px; margin-bottom: 15px}
+  .value-number {top: 22px; font-size: 7px}
+  .luxury-store #storeView .value-item h3 {font-size: 11px; margin-bottom: 8px}
+  .luxury-store #storeView .value-item p {font-size: 9px; line-height: 2}
+  .luxury-store #storeView .digital {padding-bottom: 47px}
+  .luxury-store #storeView .digital-banner {padding: 31px 27px 10px; border-radius: 9px; grid-template-columns: 1fr; gap: 0; min-height: 0}
+  .luxury-store #storeView .digital-banner .eyebrow {font-size: 9px}
+  .luxury-store #storeView .digital-banner h2 {font-size: 30px; line-height: 1.65; margin: 15px 0 12px}
+  .luxury-store #storeView .digital-banner p {font-size: 10px; line-height: 2.1}
+  .luxury-store #storeView .digital-banner .btn {font-size: 10px; margin-top: 19px; min-height: 46px; padding-inline: 18px}
+  .digital-edition {font-size: 6px; margin-top: 20px; letter-spacing: .14em}
+  .luxury-store #storeView .digital-art {height: 260px; margin-top: 0; margin-bottom: -5px}
+  .luxury-store #storeView .digital-art .product-art {width: 295px; height: 280px}
+  .digital-orbit {width: 225px; height: 225px; top: 12px; left: calc(50% - 112.5px)}
+  .luxury-store #storeView .digital-art .floating-label {font-size: 8px; left: 0; bottom: 16px; padding: 11px 14px; border-radius: 7px}
+  .membership {padding: 31px 26px; margin-bottom: 27px; border-radius: 9px; display: flex; flex-direction: column; align-items: flex-start; gap: 25px}
+  .membership h2 {font-size: 24px; margin: 14px 0 12px; line-height: 1.6}
+  .membership p {font-size: 10px; line-height: 2.1}
+  .membership p br {display: none}
+  .membership-action {align-items: flex-start; gap: 11px}
+  .membership-action .btn {font-size: 10px!important; min-height: 48px!important; padding-inline: 20px!important}
+  .membership-action>span {font-size: 8px; padding-right: 3px}
+  .membership-aura {width: 330px; height: 330px; top: -100px; left: -110px}
+  .luxury-store #storeView .newsletter {padding: 24px 0 29px; margin-bottom: 30px; gap: 17px; align-items: flex-start}
+  .footer-kicker {font-size: 6px; margin-bottom: 10px}
+  .luxury-store #storeView .newsletter h3 {font-size: 15px; line-height: 1.8; max-width: 200px; margin-bottom: 8px}
+  .luxury-store #storeView .newsletter p {font-size: 9px; max-width: 180px; margin-top: 0}
+  .luxury-store #storeView .newsletter .btn {min-height: 42px; font-size: 9px; padding: 9px 11px; gap: 10px; white-space: nowrap; margin-top: 24px}
+  .luxury-store #storeView .newsletter .btn .icon {width: 15px; height: 15px}
+  .luxury-store #storeView .footer-grid {grid-template-columns: 1fr 1fr; gap: 29px 24px}
+  .luxury-store #storeView .footer-brand {grid-column: 1 / -1}
+  .luxury-store #storeView .footer-brand .brand-name {font-size: 31px; margin-bottom: 16px}
+  .luxury-store #storeView .footer-brand p {font-size: 10px; max-width: 320px; line-height: 2}
+  .luxury-store #storeView .footer h3 {font-size: 10px; margin-bottom: 14px}
+  .luxury-store #storeView .footer-links {font-size: 9px; gap: 9px}
+  .luxury-store #storeView .footer-contact-col {grid-column: 1 / -1}
+  .luxury-store #storeView .footer-contact {font-size: 9px}
+  .luxury-store #storeView .footer-bottom {margin-top: 27px; font-size: 7px; padding-top: 18px; gap: 12px}
+  .luxury-store #storeView .footer-bottom .en {font-size: 6px; letter-spacing: .12em}
+}
+
+@media (max-width: 380px) {
+  .luxury-store #storeView .container {width: calc(100% - 30px)}
+  .luxury-store #storeView .hdr {width: calc(100% - 22px)}
+  .luxury-store #storeView .main-nav {gap: 4px; padding-inline: 1px}
+  .luxury-store #storeView .brand-name {font-size: 21px; letter-spacing: -.7px}
+  .luxury-store #storeView .nav-tools button {width: 30px}
+  .luxury-store #storeView .nav-tools .icon {height: 16px; width: 16px}
+  .luxury-store #storeView .hero-copy {padding-inline: 3px}
+  .luxury-store #storeView .hero h1 {font-size: 53px; letter-spacing: -2.5px}
+  .luxury-store #storeView .hero-copy .eyebrow>span:last-child {font-size: 7px; padding-right: 7px}
+  .luxury-store #storeView .hero-copy .eyebrow .en {font-size: 6px}
+  .luxury-store #storeView .hero-copy>p {font-size: 10px}
+  .luxury-store #storeView .hero-actions {gap: 23px}
+  .luxury-store #storeView .hero-actions .btn {min-width: 150px; padding-inline: 17px; font-size: 10px}
+  .luxury-store #storeView .hero-actions .btn-text {font-size: 9px; gap: 10px}
+  .luxury-store #storeView .hero-proof {gap: 8px; font-size: 6px}
+  .luxury-store #storeView .hero-mosaic {height: 420px}
+  .luxury-stage {border-radius: 115px 115px 10px 10px}
+  .luxury-stage::after {border-radius: 105px 105px 5px 5px}
+  .luxury-orbit {width: 260px; height: 260px}
+  .luxury-object-main {height: 385px; width: 118%; left: -9%; top: -3px}
+  .luxury-object-audio {height: 180px; width: 61%; bottom: 20px}
+  .luxury-object-charger {height: 130px; top: 20px}
+  .luxury-feature-card {padding: 10px}
+  .luxury-feature-card.feature-top {right: 8px; top: 48px}
+  .luxury-feature-card.feature-bottom {bottom: 76px; left: 8px}
+  .luxury-feature-card strong {font-size: 8px}
+  .luxury-feature-card small {font-size: 6px}
+  .luxury-detail-icon {width: 23px; height: 23px; padding: 3px}
+  .luxury-detail-swatches i {width: 14px; height: 14px}
+  .luxury-stage-caption {left: 17px; right: 17px; bottom: 17px}
+  .luxury-stage-caption span:last-child {font-size: 7px}
+  .luxury-store #storeView .section-head h2 {font-size: 22px}
+  .luxury-store #storeView .section-index {max-width: 63px; font-size: 5px}
+  .luxury-store #storeView .product-bottom {flex-direction: column; align-items: flex-start; gap: 7px}
+  .luxury-store #storeView .story-copy {padding-inline: 23px}
+  .luxury-store #storeView .story h2 {font-size: 26px}
+  .values-heading h2 {font-size: 21px}
+  .luxury-store #storeView .digital-banner {padding-inline: 23px}
+  .membership {padding-inline: 23px}
+  .membership h2 {font-size: 21px}
+  .luxury-store #storeView .newsletter {flex-direction: column; gap: 0}
+  .luxury-store #storeView .newsletter h3 {max-width: none}
+  .luxury-store #storeView .newsletter p {max-width: none}
+  .luxury-store #storeView .newsletter .btn {margin-top: 16px}
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .luxury-store #storeView .product-open .product-art {transition: none}
+  .luxury-store #storeView .product-card:hover .product-open .product-art {transform: none}
+}

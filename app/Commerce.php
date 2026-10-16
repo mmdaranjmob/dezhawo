@@ -250,7 +250,11 @@ function commerce_checkout(array $input): array
             app_error('مبلغ و وضعیت پرداخت فقط توسط سرور تعیین می‌شوند.');
         }
     }
-    payment_require_configured();
+    $paymentMethod = $input['paymentMethod'] ?? 'zarinpal';
+    if (!is_string($paymentMethod) || !in_array($paymentMethod, ['zarinpal', 'digipay', 'bank_transfer'], true)) {
+        app_error('روش پرداخت انتخاب‌شده معتبر نیست.');
+    }
+    payment_require_configured($paymentMethod);
     $customer = $input['customer'] ?? [];
     if (!is_array($customer)) {
         app_error('اطلاعات مشتری معتبر نیست.');
@@ -264,9 +268,9 @@ function commerce_checkout(array $input): array
         app_error('شمارهٔ سفارش باید شمارهٔ تأییدشدهٔ حساب باشد.');
     }
     $key = cart_key();
-    $result = transaction(function () use ($input, $customer, $name, $phone, $user, $key): array {
+    $result = transaction(function () use ($input, $customer, $name, $phone, $user, $key, $paymentMethod): array {
         // A repeated submit must not create another payable order for the same reserved cart.
-        $pending = commerce_rows("SELECT o.* FROM orders o JOIN reservations r ON r.id = o.reservation_id WHERE r.cart_key = ? AND o.user_id = ? AND o.status = 'awaiting_payment' AND r.status = 'payment_pending' AND r.expires_at > UTC_TIMESTAMP() ORDER BY o.created_at DESC LIMIT 1", [$key, $user['id']]);
+        $pending = commerce_rows("SELECT o.* FROM orders o JOIN reservations r ON r.id = o.reservation_id WHERE r.cart_key = ? AND o.user_id = ? AND o.status IN ('awaiting_payment','awaiting_review') AND r.status = 'payment_pending' AND r.expires_at > UTC_TIMESTAMP() ORDER BY o.created_at DESC LIMIT 1 FOR UPDATE", [$key, $user['id']]);
         if ($pending) {
             $cartSnapshot = array_map(fn($row) => [$row['product_id'], $row['variant_id'], (int) $row['quantity']], commerce_cart_lines($key));
             $orderSnapshot = array_map(fn($row) => [$row['product_id'], $row['variant_id'], (int) $row['quantity']], commerce_order_lines($pending[0]['id']));
@@ -284,7 +288,7 @@ function commerce_checkout(array $input): array
                 $candidate = ['province' => clean($source['province'] ?? '', 80), 'city' => clean($source['city'] ?? '', 80), 'line' => clean($source['line'] ?? '', 1000), 'postalCode' => digits($source['postalCode'] ?? '')];
                 $addressMatches = json_decode($pending[0]['address_json'], true) === $candidate;
             }
-            if ($cartSnapshot !== $orderSnapshot || !$shippingMatches || !$customerMatches || !$addressMatches) {
+            if ($cartSnapshot !== $orderSnapshot || !$shippingMatches || !$customerMatches || !$addressMatches || $pending[0]['payment'] !== $paymentMethod) {
                 app_error('درخواست پرداخت قبلی هنوز باز است؛ همان سفارش را تکمیل کنید یا پس از پایان رزرو سفارش جدید ثبت کنید.', 409);
             }
             return ['id' => $pending[0]['id'], 'number' => $pending[0]['number']];
@@ -319,26 +323,33 @@ function commerce_checkout(array $input): array
             }
             $shipping = $rows[0];
         }
-        // pay_on_delivery applies to carriage only: merchandise always requires gateway payment.
+        // pay_on_delivery applies to carriage only; merchandise must still be paid in full.
         $shippingFee = $shipping && !(int) $shipping['pay_on_delivery'] ? (int) $shipping['fee'] : 0;
         $totals = commerce_totals($lines, $shippingFee);
-        if ($totals['total'] < 1000 && !payment_is_stub()) {
+        if ($paymentMethod !== 'bank_transfer' && $totals['total'] < 1000 && !payment_is_stub()) {
             app_error('مبلغ سفارش از حداقل قابل پرداخت درگاه کمتر است.');
         }
         $id = uid('order');
         $number = commerce_order_number('DZ');
-        commerce_execute("INSERT INTO orders (id,number,type,user_id,customer_name,customer_phone,telegram_username,address_json,status,payment_status,subtotal,shipping_fee,total,shipping_id,shipping_name,pay_on_delivery,payment,tracking_code,stock_returned,reservation_id,created_at,updated_at) VALUES (?,?,'online',?,?,?,?,?,'awaiting_payment','unpaid',?,?,?,?,?,?,'zarinpal','',0,?,UTC_TIMESTAMP(),UTC_TIMESTAMP())", [
+        commerce_execute("INSERT INTO orders (id,number,type,user_id,customer_name,customer_phone,telegram_username,address_json,status,payment_status,subtotal,shipping_fee,total,shipping_id,shipping_name,pay_on_delivery,payment,tracking_code,stock_returned,reservation_id,created_at,updated_at) VALUES (?,?,'online',?,?,?,?,?,'awaiting_payment','unpaid',?,?,?,?,?,?,?,'',0,?,UTC_TIMESTAMP(),UTC_TIMESTAMP())", [
             $id, $number, $user['id'], $name, $phone, $telegram, $address === null ? null : json_value($address),
             $totals['subtotal'], $totals['shippingFee'], $totals['total'], $shipping['id'] ?? null,
-            $shipping['name'] ?? 'تحویل دیجیتال', $shipping ? (int) $shipping['pay_on_delivery'] : 0, $reservation['id'],
+            $shipping['name'] ?? 'تحویل دیجیتال', $shipping ? (int) $shipping['pay_on_delivery'] : 0, $paymentMethod, $reservation['id'],
         ]);
         commerce_insert_items($id, $lines);
-        commerce_execute("UPDATE reservations SET status = 'payment_pending', order_id = ?, expires_at = DATE_ADD(UTC_TIMESTAMP(),INTERVAL 20 MINUTE) WHERE id = ?", [$id, $reservation['id']]);
-        audit('order.checkout', $id, ['number' => $number, 'total' => $totals['total']]);
+        $minutes = $paymentMethod === 'bank_transfer' ? 120 : 20;
+        commerce_execute("UPDATE reservations SET status = 'payment_pending', order_id = ?, expires_at = DATE_ADD(UTC_TIMESTAMP(),INTERVAL $minutes MINUTE) WHERE id = ?", [$id, $reservation['id']]);
+        if ($paymentMethod === 'bank_transfer') {
+            // Snapshot the destination together with the immutable order, before settings can change.
+            manual_payment_begin($id);
+        }
+        audit('order.checkout', $id, ['number' => $number, 'total' => $totals['total'], 'paymentMethod' => $paymentMethod]);
         return ['id' => $id, 'number' => $number];
     });
-    $redirect = payment_create($result['id']);
-    return ['orderId' => $result['id'], 'number' => $result['number'], 'redirectUrl' => $redirect];
+    if ($paymentMethod === 'bank_transfer') {
+        return ['orderId' => $result['id'], 'number' => $result['number'], 'paymentMethod' => $paymentMethod, 'redirectUrl' => null, 'manualPayment' => manual_payment_begin($result['id'])];
+    }
+    return ['orderId' => $result['id'], 'number' => $result['number'], 'paymentMethod' => $paymentMethod, 'redirectUrl' => payment_create($result['id'])];
 }
 
 /** Resume the immutable, still-reserved order rather than recreating customer or price data. */
@@ -346,14 +357,23 @@ function commerce_resume(array $input): array
 {
     $user = require_user();
     $id = commerce_id($input['id'] ?? null, 'سفارش');
-    payment_require_configured();
     $order = transaction(function () use ($user, $id): array {
         $rows = commerce_rows('SELECT * FROM orders WHERE id = ? AND user_id = ? FOR UPDATE', [$id, $user['id']]);
         if (!$rows) {
             app_error('سفارش پیدا نشد.', 404);
         }
         $order = $rows[0];
-        if ($order['type'] !== 'online' || $order['status'] !== 'awaiting_payment' || $order['payment_status'] !== 'unpaid') {
+        if ($order['type'] !== 'online') {
+            app_error('این سفارش پرداخت آنلاین ندارد.');
+        }
+        // A transfer destination is an order snapshot; disabling the method does not hide it.
+        if ($order['payment'] === 'bank_transfer') {
+            if (!in_array($order['status'], ['awaiting_payment', 'awaiting_review'], true) || !in_array($order['payment_status'], ['unpaid', 'pending_review'], true)) {
+                app_error('این سفارش در انتظار پرداخت یا بررسی واریز نیست.');
+            }
+            return $order;
+        }
+        if ($order['status'] !== 'awaiting_payment' || $order['payment_status'] !== 'unpaid') {
             app_error('این سفارش در انتظار پرداخت نیست.');
         }
         $reservation = commerce_rows("SELECT id FROM reservations WHERE id = ? AND user_id = ? AND order_id = ? AND status = 'payment_pending' AND expires_at > UTC_TIMESTAMP()", [$order['reservation_id'], $user['id'], $id]);
@@ -362,7 +382,11 @@ function commerce_resume(array $input): array
         }
         return $order;
     });
-    return ['orderId' => $id, 'number' => $order['number'], 'redirectUrl' => payment_create($id)];
+    if ($order['payment'] === 'bank_transfer') {
+        return ['orderId' => $id, 'number' => $order['number'], 'paymentMethod' => 'bank_transfer', 'redirectUrl' => null, 'manualPayment' => manual_payment_begin($id)];
+    }
+    payment_require_configured($order['payment']);
+    return ['orderId' => $id, 'number' => $order['number'], 'paymentMethod' => $order['payment'], 'redirectUrl' => payment_create($id)];
 }
 
 function commerce_pos(array $input): array
@@ -455,7 +479,7 @@ function commerce_set_status(array $input): array
     $id = commerce_id($input['id'] ?? null, 'سفارش');
     $status = $input['status'] ?? '';
     if (!in_array($status, ['processing', 'shipped', 'completed', 'cancelled'], true)) {
-        app_error('این وضعیت مجاز نیست؛ پرداخت فقط با تأیید درگاه ثبت می‌شود.');
+        app_error('این وضعیت مجاز نیست؛ پرداخت از مسیر درگاه یا بررسی مجاز واریز تأیید می‌شود.');
     }
     return transaction(function () use ($id, $status, $user): array {
         $found = commerce_rows('SELECT * FROM orders WHERE id = ? FOR UPDATE', [$id]);
@@ -488,6 +512,10 @@ function commerce_set_status(array $input): array
                 commerce_execute("UPDATE reservations SET status = 'released', expires_at = UTC_TIMESTAMP() WHERE id = ?", [$order['reservation_id']]);
             }
             $paymentStatus = in_array($order['payment_status'], ['paid', 'refund_pending'], true) ? 'refund_pending' : $order['payment_status'];
+            if ($order['payment'] === 'bank_transfer' && in_array($order['payment_status'], ['unpaid', 'pending_review'], true)) {
+                manual_payment_cancel_locked($id);
+                $paymentStatus = 'failed';
+            }
             commerce_execute("UPDATE orders SET status = 'cancelled', payment_status = ?, stock_returned = 1, updated_at = UTC_TIMESTAMP() WHERE id = ?", [$paymentStatus, $id]);
         } else {
             if ($order['payment_status'] !== 'paid' || $order['status'] === 'payment_review' || !in_array($order['status'], ['paid', 'processing', 'shipped'], true)) {

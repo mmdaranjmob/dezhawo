@@ -166,8 +166,15 @@ function testCode(phone) {
       await f.locator('[name="address"]').fill('خیابان آزمون، پلاک ۱');await f.locator('[name="postalCode"]').fill('1234567890');
       let intercept;
       const redirected=new Promise(resolve=>{intercept=resolve;});
-      await customer.route('**/payment-callback.php?**',async route=>{intercept(route.request().url());await route.abort();});
+      // Pause at a neutral QA page without verifying the order. Aborting a
+      // document request races Chrome's error navigation with the next goto.
+      await customer.route('**/payment-callback.php?**',async route=>{
+        const url=route.request().url();
+        await route.fulfill({status:200,contentType:'text/html',body:'<!doctype html><title>Isolated QA callback paused</title>'});
+        intercept(url);
+      });
       await f.locator('[type="submit"]').click();await redirected;
+      await customer.waitForURL('**/payment-callback.php?**',{waitUntil:'networkidle'});
       await loaded(customer);
       assert.equal(await customer.evaluate(()=>DZ.state.reservation?.status),'payment_pending');
       const pendingId=await customer.evaluate(()=>DZ.state.reservation.orderId);

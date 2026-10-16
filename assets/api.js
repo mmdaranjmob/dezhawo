@@ -4,7 +4,7 @@
   const knownPermissions = ['products.view','products.edit','products.delete','inventory.view','inventory.edit','pos.create','orders.view','orders.edit','finance.view','tickets.view','tickets.reply','shipping.edit','users.edit','roles.edit','appearance.edit','enamad.edit','settings.edit'];
   const defaults = {
     configured: false, loading: true, products: [], shipping: [], currentUser: null,
-    users: [], roles: [], cart: [], reservation: null, orders: [], movements: [], tickets: [],
+    users: [], roles: [], cart: [], reservation: null, orders: [], movements: [], tickets: [], paymentMethods: [], paymentSettings: null,
     capabilities: {smsConfigured: false, paymentConfigured: false},
     settings: {brand:'DEZHAWO', tagline:'دژاوو؛ انتخابی که می‌ماند.', footerText:'دژاوو؛ لوازم جانبی برای هر روز، انتخابی برای ماندن.'}
   };
@@ -86,6 +86,10 @@
     setCartQty:(productId,variantId,quantity) => mutate('cart.set',{productId,variantId,quantity}),
     reserveCart:() => mutate('reservation.create',{}), releaseReservation:() => mutate('reservation.release',{}),
     checkout:options => mutate('order.checkout',options), resumeOrder:id => mutate('order.resume',{id}), sellPOS:options => mutate('pos.sale',options),
+    savePaymentSettings:settings => mutate('payments.settings',{settings}),
+    submitTransfer:(orderId,reference,note) => mutate('transfer.submit',{orderId,reference,note}),
+    reviewTransfer:(orderId,decision,note) => mutate('transfer.review',{orderId,decision,note}),
+    reportDelivery:orderId => mutate('order.deliver',{orderId}),
     adjustStock:(productId,variantId,delta,reason) => mutate('inventory.adjust',{productId,variantId,delta,reason}),
     saveProduct:product => mutate('product.save',{product}),
     setVariantEnabled:(productId,variantId,enabled) => mutate('variant.enabled',{productId,variantId,enabled}),

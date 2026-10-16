@@ -296,7 +296,10 @@ try {
 } catch (Throwable) {
     // Installer/API can describe which setup step is still missing.
 }
-if (session_status() !== PHP_SESSION_ACTIVE) {
+// DigiPay returns a cross-site POST without the SameSite=Lax login cookie.
+// Verify its persisted payment state without issuing a new cookie over that login.
+$statelessPaymentCallback = defined('DEZHAWO_DIGIPAY_CALLBACK') && DEZHAWO_DIGIPAY_CALLBACK === true;
+if (!$statelessPaymentCallback && session_status() !== PHP_SESSION_ACTIVE) {
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
     ini_set('session.cookie_httponly', '1');

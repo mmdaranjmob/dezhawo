@@ -8,13 +8,29 @@ function payment_is_stub(): bool
     return ($configuration['app']['env'] ?? 'production') === 'testing' && ($configuration['testing']['payment_stub'] ?? false) === true;
 }
 
-function payment_require_configured(): void
+function payment_require_configured(string $method = 'zarinpal', bool $checkEnabled = true): void
 {
-    if (payment_is_stub()) {
+    $keys = ['zarinpal' => 'zarinpalEnabled', 'digipay' => 'digipayEnabled', 'bank_transfer' => 'bankTransferEnabled'];
+    if (!isset($keys[$method])) {
+        app_error('روش پرداخت معتبر نیست.');
+    }
+    $options = payment_options();
+    if ($checkEnabled && empty($options[$keys[$method]])) {
+        app_error('این روش پرداخت در حال حاضر فعال نیست.', 503);
+    }
+    if ($method === 'bank_transfer') {
+        if (!payment_bank_details_valid($options)) {
+            app_error('اطلاعات حساب فروشگاه برای انتقال وجه کامل نیست.', 503);
+        }
+        return;
+    }
+    if ($method === 'zarinpal' && payment_is_stub()) {
         return;
     }
     $configuration = config();
-    if (($configuration['payment']['provider'] ?? '') !== 'zarinpal' || !preg_match('/^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$/D', (string) ($configuration['payment']['merchant_id'] ?? ''))) {
+    if ($method === 'digipay') {
+        digipay_require_credentials($checkEnabled);
+    } elseif (($configuration['payment']['provider'] ?? '') !== 'zarinpal' || !preg_match('/^[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$/D', (string) ($configuration['payment']['merchant_id'] ?? ''))) {
         app_error('درگاه پرداخت هنوز توسط مدیر پیکربندی نشده است.', 503);
     }
     $base = (string) ($configuration['app']['base_url'] ?? '');
@@ -46,7 +62,8 @@ function payment_gateway_call(string $operation, array $payload): array
     if (!in_array($operation, ['request', 'verify'], true)) {
         throw new LogicException('Invalid gateway operation');
     }
-    payment_require_configured();
+    // Verification must remain possible after the manager disables new payments.
+    payment_require_configured('zarinpal', $operation === 'request');
     $handle = curl_init('https://' . payment_gateway_host() . '/pg/v4/payment/' . $operation . '.json');
     curl_setopt_array($handle, [
         CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
@@ -74,7 +91,18 @@ function payment_gateway_call(string $operation, array $payload): array
 
 function payment_create(string $orderId): string
 {
-    payment_require_configured();
+    $found = commerce_rows('SELECT payment FROM orders WHERE id = ?', [$orderId]);
+    if (!$found) {
+        app_error('سفارش پیدا نشد.', 404);
+    }
+    $method = (string) $found[0]['payment'];
+    payment_require_configured($method);
+    if ($method === 'digipay') {
+        return digipay_create($orderId);
+    }
+    if ($method !== 'zarinpal') {
+        app_error('برای انتقال وجه از مشخصات حساب سفارش استفاده کنید.');
+    }
     $prepared = transaction(function () use ($orderId): array {
         $rows = commerce_rows('SELECT * FROM orders WHERE id = ? FOR UPDATE', [$orderId]);
         if (!$rows || $rows[0]['status'] !== 'awaiting_payment' || $rows[0]['payment_status'] !== 'unpaid') {
@@ -90,12 +118,12 @@ function payment_create(string $orderId): string
             // The provider might have accepted an uncertain request: do not silently request another payment.
             app_error('درخواست پرداخت این سفارش قبلاً ثبت شده است؛ وضعیت آن را از سفارش‌ها پیگیری کنید.', 409);
         }
-        $amountRial = (int) $order['total'] * 10;
+        $amountRial = payment_amount_rial($order);
         if ($amountRial < 10000 && !payment_is_stub()) {
             app_error('مبلغ سفارش از حداقل قابل پرداخت درگاه کمتر است.');
         }
         $attempt = ['id' => uid('payment'), 'amount_rial' => $amountRial];
-        commerce_execute("INSERT INTO payment_attempts (id,order_id,authority,amount_rial,status,reference_id,created_at,updated_at) VALUES (?,?,NULL,?,'requesting',NULL,UTC_TIMESTAMP(),UTC_TIMESTAMP())", [$attempt['id'], $orderId, $amountRial]);
+        commerce_execute("INSERT INTO payment_attempts (id,order_id,provider,authority,amount_rial,status,reference_id,created_at,updated_at) VALUES (?,?,'zarinpal',NULL,?,'requesting',NULL,UTC_TIMESTAMP(),UTC_TIMESTAMP())", [$attempt['id'], $orderId, $amountRial]);
         return ['order' => $order, 'attempt' => $attempt, 'existing' => false];
     });
     if ($prepared['existing']) {
@@ -146,13 +174,22 @@ function payment_result(array $order, bool $success, string $message): array
     return ['success' => $success, 'orderId' => $order['id'], 'number' => $order['number'], 'status' => $order['status'], 'paymentStatus' => $order['payment_status'], 'message' => $message];
 }
 
+function payment_amount_rial(array $order): int
+{
+    $total = $order['total'] ?? null;
+    if ((!is_int($total) && !is_string($total)) || !preg_match('/^[0-9]{1,15}$/D', (string) $total) || (int) $total < 1 || (int) $total > intdiv(PHP_INT_MAX, 10)) {
+        app_error('مبلغ سفارش برای پرداخت معتبر نیست.', 409);
+    }
+    return (int) $total * 10;
+}
+
 function handle_payment_callback(array $query): array
 {
     $authority = $query['Authority'] ?? null;
     if (!is_string($authority) || !preg_match('/^[A-Za-z0-9_]{16,100}$/D', $authority)) {
         app_error('شناسهٔ پرداخت معتبر نیست.');
     }
-    $attemptRows = commerce_rows('SELECT * FROM payment_attempts WHERE authority = ?', [$authority]);
+    $attemptRows = commerce_rows("SELECT * FROM payment_attempts WHERE authority = ? AND provider = 'zarinpal'", [$authority]);
     if (!$attemptRows) {
         app_error('پرداخت پیدا نشد.', 404);
     }
@@ -198,13 +235,27 @@ function handle_payment_callback(array $query): array
         }
         $reference = clean((string) $response['data']['ref_id'], 100);
     }
-    return transaction(function () use ($order, $attempt, $reference): array {
-        $locked = commerce_rows('SELECT * FROM orders WHERE id = ? FOR UPDATE', [$order['id']])[0];
-        $payment = commerce_rows('SELECT * FROM payment_attempts WHERE id = ? FOR UPDATE', [$attempt['id']])[0];
+    return payment_finalize_verified($order['id'], $attempt['id'], $reference);
+}
+
+/** Shared atomic allocation, called only after gateway verification or authorized bank review. */
+function payment_finalize_verified(string $orderId, string $attemptId, string $reference): array
+{
+    return transaction(function () use ($orderId, $attemptId, $reference): array {
+        $orders = commerce_rows('SELECT * FROM orders WHERE id = ? FOR UPDATE', [$orderId]);
+        $payments = commerce_rows('SELECT * FROM payment_attempts WHERE id = ? AND order_id = ? FOR UPDATE', [$attemptId, $orderId]);
+        if (!$orders || !$payments) {
+            app_error('سفارش یا تلاش پرداخت پیدا نشد.', 404);
+        }
+        $locked = $orders[0];
+        $payment = $payments[0];
+        if (!in_array($payment['provider'], ['zarinpal', 'digipay', 'bank_transfer'], true) || $payment['provider'] !== $locked['payment']) {
+            app_error('روش پرداخت با سفارش مطابقت ندارد.', 409);
+        }
         if ($payment['status'] === 'verified') {
             return payment_result($locked, true, 'پرداخت این سفارش قبلاً تأیید شده است.');
         }
-        if ((int) $payment['amount_rial'] !== (int) $locked['total'] * 10) {
+        if ((int) $payment['amount_rial'] !== payment_amount_rial($locked)) {
             app_error('مبلغ پرداخت با سفارش مطابقت ندارد.', 409);
         }
         commerce_execute("UPDATE payment_attempts SET status = 'verified',reference_id = ?,updated_at = UTC_TIMESTAMP() WHERE id = ?", [$reference, $payment['id']]);
@@ -229,7 +280,7 @@ function handle_payment_callback(array $query): array
         }
         $status = $shortage ? 'payment_review' : 'paid';
         if (!$shortage) {
-            $systemUser = ['id' => null, 'name' => 'تأیید درگاه'];
+            $systemUser = ['id' => null, 'name' => $payment['provider'] === 'bank_transfer' ? 'تأیید واریز بانکی' : 'تأیید درگاه'];
             foreach ($lines as $line) {
                 if ($line['category'] !== 'digital') {
                     commerce_execute('UPDATE product_variants SET stock = stock - ?,updated_at = UTC_TIMESTAMP() WHERE id = ?', [(int) $line['quantity'], $line['variant_id']]);

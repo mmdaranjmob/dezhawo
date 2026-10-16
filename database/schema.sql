@@ -255,10 +255,12 @@ CREATE TABLE rate_limits (
 CREATE TABLE payment_attempts (
   id VARCHAR(64) NOT NULL,
   order_id VARCHAR(64) NOT NULL,
+  provider VARCHAR(30) NOT NULL DEFAULT 'zarinpal',
   authority VARCHAR(100) NULL,
   amount_rial BIGINT UNSIGNED NOT NULL,
   status VARCHAR(30) NOT NULL DEFAULT 'requesting',
   reference_id VARCHAR(100) NULL,
+  metadata_json TEXT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -316,4 +318,5 @@ INSERT INTO settings (name, value) VALUES
 ('footerHelpTitle', '"کنار تو هستیم"'),
 ('footerLinks', '[{"label":"لوازم جانبی موبایل","target":"#catalog","group":"store"},{"label":"اشتراک‌های دیجیتال","target":"#digital","group":"store"},{"label":"دربارهٔ دژاوو","target":"#story","group":"store"},{"label":"علاقه‌مندی‌های من","target":"#favorites","group":"store"},{"label":"حساب کاربری و سفارش‌ها","target":"#account","group":"help"},{"label":"ثبت و پیگیری تیکت","target":"#support","group":"help"},{"label":"روش‌های ارسال","target":"#shipping-info","group":"help"},{"label":"راهنمای خرید و مرجوعی","target":"#policies","group":"help"}]'),
 ('enamadUrl', '""'),
-('enamadEnabled', 'false');
+('enamadEnabled', 'false'),
+('payment_options', '{"zarinpalEnabled":true,"digipayEnabled":false,"bankTransferEnabled":false,"bankCard":"","bankIban":"","bankHolder":"","bankName":"","bankInstructions":""}');

@@ -60,6 +60,19 @@ there is no production testing endpoint or transport override. PHP needs the
 cURL extension for its constants. Successful fixtures verify the protocol, not
 delivery to a real handset or the account's sending-line authorization.
 
+The payment extension has separate HTTP/database and provider-fixture checks:
+
+```sh
+python3 tests/payment_methods.py --private-dir /tmp/dezhawo-qa
+docker exec dezhawo-qa-web php /var/www/html/tests/digipay_provider.php --database
+```
+
+Run these suites sequentially against the disposable QA runtime. They restore
+payment settings and never send real gateway requests. Coverage includes bank
+snapshots and checksums, review permissions, unpaid receipt submission, competing
+last-unit approvals, cancellation/replay, callback cookie preservation, DigiPay
+state/amount/identifier verification, uncertain results and delivery retries.
+
 Optional browser checks need Playwright available to Node and a local Chromium
 executable. Install test dependencies outside this checkout if needed:
 

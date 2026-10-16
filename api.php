@@ -3,8 +3,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/app/bootstrap.php';
 require_once __DIR__ . '/app/Auth.php';
 require_once __DIR__ . '/app/Sms.php';
+require_once __DIR__ . '/app/PaymentMethods.php';
 require_once __DIR__ . '/app/Commerce.php';
 require_once __DIR__ . '/app/Payments.php';
+require_once __DIR__ . '/app/Digipay.php';
+require_once __DIR__ . '/app/ManualPayments.php';
 require_once __DIR__ . '/app/Admin.php';
 
 $action = is_string($_GET['action'] ?? null) ? $_GET['action'] : '';
@@ -25,6 +28,7 @@ try {
         'cart.add', 'cart.set', 'reservation.create', 'reservation.release', 'order.checkout', 'order.resume',
         'pos.sale', 'inventory.adjust', 'order.status', 'order.tracking',
         'product.save', 'product.enabled', 'variant.enabled', 'product.delete', 'settings.save',
+        'payments.settings', 'transfer.submit', 'transfer.review', 'order.deliver',
         'shipping.save', 'shipping.disable', 'role.save', 'role.delete',
         'user.role', 'user.enabled', 'user.create',
         'ticket.create', 'ticket.reply', 'ticket.status',
@@ -41,6 +45,12 @@ try {
     $input = body();
     if (str_starts_with($action, 'auth.')) {
         respond(auth_action($action, $input));
+    }
+    if (str_starts_with($action, 'transfer.')) {
+        respond(manual_payment_action($action, $input));
+    }
+    if ($action === 'order.deliver') {
+        respond(payment_deliver($input));
     }
     if (in_array($action, ['cart.add', 'cart.set', 'reservation.create', 'reservation.release',
         'order.checkout', 'order.resume', 'pos.sale', 'inventory.adjust', 'order.status', 'order.tracking'], true)) {
