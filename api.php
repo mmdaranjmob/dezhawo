@@ -31,7 +31,7 @@ try {
         'auth.requestOtp', 'auth.verifyOtp', 'auth.temporaryLogin', 'auth.logout',
         'database.upgrade',
         'cart.add', 'cart.set', 'reservation.create', 'reservation.release', 'order.checkout', 'order.resume',
-        'pos.sale', 'inventory.adjust', 'order.status', 'order.tracking',
+        'pos.sale', 'pos.customerLookup', 'inventory.adjust', 'order.status', 'order.tracking',
         'product.save', 'product.imageUpload', 'product.enabled', 'variant.enabled', 'product.delete', 'category.save', 'category.delete', 'settings.save',
         'payments.settings', 'transfer.submit', 'transfer.review', 'order.deliver',
         'shipping.save', 'shipping.disable', 'role.save', 'role.delete',
@@ -70,7 +70,7 @@ try {
         respond(payment_deliver($input));
     }
     if (in_array($action, ['cart.add', 'cart.set', 'reservation.create', 'reservation.release',
-        'order.checkout', 'order.resume', 'pos.sale', 'inventory.adjust', 'order.status', 'order.tracking'], true)) {
+        'order.checkout', 'order.resume', 'pos.sale', 'pos.customerLookup', 'inventory.adjust', 'order.status', 'order.tracking'], true)) {
         respond(commerce_action($action, $input));
     }
     respond(admin_action($action, $input));

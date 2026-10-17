@@ -210,3 +210,18 @@ failures, and concurrent last-unit sales. Browser checks exercise draft retentio
 across invoice edits/refreshes, inline errors, duplicate blocking during a pending
 save and clearing customer fields only after a successful sale. Fixtures are
 removed afterward; no database migration or account creation is required.
+
+POS purchase history has separate API/database and browser checks:
+
+```sh
+python3 tests/pos_customer_history.py --private-dir /tmp/dezhawo-qa
+DEZHAWO_QA_SECRETS=/tmp/dezhawo-qa/secrets.json \
+DEZHAWO_QA_OUTBOX=/tmp/dezhawo-qa/outbox \
+node tests/pos_customer_history_browser.js
+```
+
+Run these sequentially against the same disposable runtime. They check POS-only
+authorization, normalized mobiles, registered customers and new numbers, counts
+across paid online/POS invoices with excluded statuses, and history beyond the
+recent-order list. Browser checks cover debounce, draft retention, stale replies,
+inline retry, clearing after a real sale, and mobile light/dark presentation.

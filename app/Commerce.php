@@ -390,6 +390,31 @@ function commerce_resume(array $input): array
     return ['orderId' => $id, 'number' => $order['number'], 'paymentMethod' => $order['payment'], 'redirectUrl' => payment_create($id)];
 }
 
+/** Use the same bounded, normalized mobile for POS entry and history lookup. */
+function commerce_pos_phone(mixed $rawPhone): string
+{
+    if (!is_string($rawPhone) || !mb_check_encoding($rawPhone, 'UTF-8') || mb_strlen($rawPhone, 'UTF-8') > 30 || preg_match('/\p{Cc}/u', $rawPhone)) {
+        app_error('شماره موبایل معتبر مشتری را وارد کنید.');
+    }
+    return phone_value($rawPhone);
+}
+
+/** Return only the purchase count; never expose another customer's identity. */
+function commerce_pos_customer_lookup(array $input): array
+{
+    require_permission('pos.create');
+    $phone = commerce_pos_phone($input['phone'] ?? null);
+    $row = commerce_rows("SELECT COUNT(*) AS order_count,
+        COALESCE(SUM(CASE WHEN payment_status = 'paid' AND status IN ('paid','processing','shipped','completed') THEN 1 ELSE 0 END), 0) AS purchase_count,
+        EXISTS(SELECT 1 FROM users WHERE phone = ?) AS registered
+        FROM orders WHERE customer_phone = ?", [$phone, $phone])[0];
+    return [
+        'phone' => $phone,
+        'exists' => (bool) $row['registered'] || (int) $row['order_count'] > 0,
+        'purchaseCount' => (int) $row['purchase_count'],
+    ];
+}
+
 /** Validate POS identity before starting any stock or order transaction. */
 function commerce_pos_customer(array $input): array
 {
@@ -416,11 +441,7 @@ function commerce_pos_customer(array $input): array
     if (mb_strlen($name, 'UTF-8') > 100) {
         app_error('نام و نام خانوادگی مشتری روی هم باید حداکثر ۱۰۰ نویسه باشد.');
     }
-    $rawPhone = $customer['phone'] ?? null;
-    if (!is_string($rawPhone) || !mb_check_encoding($rawPhone, 'UTF-8') || mb_strlen($rawPhone, 'UTF-8') > 30 || preg_match('/\p{Cc}/u', $rawPhone)) {
-        app_error('شماره موبایل معتبر مشتری را وارد کنید.');
-    }
-    $phone = phone_value($rawPhone);
+    $phone = commerce_pos_phone($customer['phone'] ?? null);
     $address = null;
     $source = $input['address'] ?? null;
     if ($source !== null) {
@@ -613,6 +634,7 @@ function commerce_action(string $action, array $input): mixed
         'reservation.release' => commerce_release(),
         'order.checkout' => commerce_checkout($input),
         'order.resume' => commerce_resume($input),
+        'pos.customerLookup' => commerce_pos_customer_lookup($input),
         'pos.sale' => commerce_pos($input),
         'inventory.adjust' => commerce_inventory_adjust($input),
         'order.status' => commerce_set_status($input),

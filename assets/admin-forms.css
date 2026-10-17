@@ -5,5 +5,12 @@
 [data-money-input]::placeholder{direction:rtl;text-align:right}
 [data-admin-form][aria-busy=true] button[type=submit]{cursor:wait}
 .admin-pos-layout [data-admin-form="pos-sale"] .admin-span-2{grid-column:1/-1}
+.admin-pos-customer-history{min-width:0;padding:12px 15px;border:1px solid var(--theme-line);border-radius:10px;background:var(--theme-raised);color:var(--theme-fg);font-size:12px;line-height:1.9;overflow-wrap:anywhere}
+.admin-pos-customer-history[hidden]{display:none}
+.admin-pos-customer-history strong,.admin-pos-customer-history small{display:block}
+.admin-pos-customer-history small{color:var(--theme-muted);margin-top:3px;line-height:1.9}
+.admin-pos-customer-history .admin-link{color:var(--theme-fg);margin-inline-start:12px;white-space:normal}
+.admin-pos-customer-history[data-state=error]{border-color:#bb4834}
 html[data-theme=dark] .admin-form-error{color:#ffd1c5;background:#38241f;border-color:#855044}
 html[data-theme=dark] [data-admin-form] [aria-invalid=true]{border-color:#ffad97;outline-color:#ffad97}
+html[data-theme=dark] .admin-pos-customer-history[data-state=error]{border-color:#ffad97}

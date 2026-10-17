@@ -63,6 +63,17 @@
       }
     });
   }
+  function lookupPOSCustomer(phone) {
+    const cashierId = state.currentUser?.id;
+    return enqueue(async () => {
+      await ready;
+      if (!cashierId || state.currentUser?.id !== cashierId || !state.currentUser?.permissions?.includes('pos.create')) {
+        throw new Error('برای مشاهدهٔ سابقهٔ مشتری، با حساب مجاز فروش حضوری وارد شوید.');
+      }
+      // A lookup must not bootstrap or rerender the invoice being typed.
+      return request('pos.customerLookup', {phone});
+    });
+  }
   function getProduct(id) { return state.products.find(p => p.id === id) || null; }
   function price(product, variant) { return Number(variant?.price ?? product?.price ?? 0); }
   function categoryAvailable(product) {
@@ -94,7 +105,7 @@
     addCart:(productId,variantId,quantity = 1) => mutate('cart.add',{productId,variantId,quantity}),
     setCartQty:(productId,variantId,quantity) => mutate('cart.set',{productId,variantId,quantity}),
     reserveCart:() => mutate('reservation.create',{}), releaseReservation:() => mutate('reservation.release',{}),
-    checkout:options => mutate('order.checkout',options), resumeOrder:id => mutate('order.resume',{id}), sellPOS:options => mutate('pos.sale',options),
+    checkout:options => mutate('order.checkout',options), resumeOrder:id => mutate('order.resume',{id}), sellPOS:options => mutate('pos.sale',options), lookupPOSCustomer,
     savePaymentSettings:settings => mutate('payments.settings',{settings}),
     submitTransfer:(orderId,reference,note) => mutate('transfer.submit',{orderId,reference,note}),
     reviewTransfer:(orderId,decision,note) => mutate('transfer.review',{orderId,decision,note}),
