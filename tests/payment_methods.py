@@ -205,7 +205,7 @@ class Payments(qa.Checks):
         self.review(order_id, 'approve', expected=409)
         assert self.stored_order(order_id)[1] != 'paid' and self.stock(variant) == 1
         self.owner.action('pos.sale', {'lines': [{'productId': product, 'variantId': variant,
-                          'quantity': 1}], 'payment': 'cash', 'customer': 'فروش ساختگی پس از رد'})
+                          'quantity': 1}], 'payment': 'cash', 'customer': self.pos_customer()})
         assert self.stock(variant) == 0, 'rejected transfer kept its stock reservation'
         self.owner.action('order.status', {'id': order_id, 'status': 'cancelled'})
         self.owner.action('order.status', {'id': order_id, 'status': 'cancelled'})
@@ -220,7 +220,7 @@ class Payments(qa.Checks):
         buyer.action('order.resume', {'id': order_id})
         assert self.reservation_expiry(order_id) == expires, 'late resume renewed the expired reservation'
         self.owner.action('pos.sale', {'lines': [{'productId': product, 'variantId': variant,
-                          'quantity': 1}], 'payment': 'cash', 'customer': 'فروش ساختگی پس از پایان رزرو'})
+                          'quantity': 1}], 'payment': 'cash', 'customer': self.pos_customer()})
         self.review(order_id)
         assert self.stored_order(order_id) == ['payment_review', 'paid'], 'late approval with shortage did not enter payment review'
         self.review(order_id)

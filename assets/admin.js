@@ -4,6 +4,8 @@
   let currentTab = 'overview', productDraft = null, appearanceDraft = null, posLines = [], viewTicketId = null;
   let productImageFile = null, productImagePreview = '';
   let productStockBaseline = new Map();
+  const blankPOSCustomer = ()=>({firstName:'',lastName:'',phone:'',address:'',payment:'card'});
+  let posCustomerDraft=blankPOSCustomer(),posSubmitting=false,posCashierKey='';
   const categories = {case:'قاب موبایل',glass:'گلس و محافظ',cable:'کابل',charger:'شارژر',audio:'هندزفری',digital:'اشتراک دیجیتال'};
   const statuses = {awaiting_payment:'در انتظار پرداخت',awaiting_review:'در انتظار بررسی واریز',paid:'پرداخت‌شده',processing:'در حال آماده‌سازی',shipped:'ارسال‌شده',completed:'تکمیل‌شده',cancelled:'لغوشده',payment_failed:'پرداخت ناموفق',payment_review:'نیازمند بررسی پرداخت'};
   const paymentLabels = {pending_review:'واریز در انتظار تأیید',unpaid:'پرداخت نشده',paid:'پرداخت تأیید شده',failed:'پرداخت ناموفق',refund_pending:'نیازمند بازپرداخت'};
@@ -76,6 +78,7 @@
   });
   document.addEventListener('input',event=>{
     const input=event.target,el=input.closest('[data-admin-form]');if(!el)return;
+    if(el.dataset.adminForm==='pos-sale')readPOSCustomer(el);
     clearFormError(el);if(input.matches('[data-money-input]')&&!event.isComposing)formatMoneyInput(input);
   });
   document.addEventListener('compositionend',event=>{if(event.target.matches('[data-money-input]'))formatMoneyInput(event.target);});
@@ -132,12 +135,17 @@
     ensure('inventory.edit');const products=allProducts().filter(p=>p.enabled!==false&&p.category!=='digital'), chosen=products.find(p=>p.id===productId)||products[0];if(!chosen)throw new Error('ابتدا یک محصول بسازید.');
     form('ثبت ورود یا اصلاح موجودی',`${select('محصول','productId',products.map(p=>`<option value="${e(p.id)}" ${p.id===chosen.id?'selected':''}>${e(p.title)}</option>`).join(''),'data-admin-change="stock-product"')}${select('رنگ / مدت','variantId',(chosen.variants||[]).filter(v=>v.enabled!==false).map(v=>`<option value="${e(v.id)}" ${v.id===variantId?'selected':''}>${e(v.name)} · موجودی ${n(v.stock)}</option>`).join(''))}${select('نوع تغییر','operation','<option value="add">ورود کالا / افزایش</option><option value="subtract">خروج / خرابی / کسری</option><option value="count">انبارگردانی — ثبت تعداد واقعی</option>')}${field('تعداد','quantity',1,'number','min="0" step="1" required')}${textarea('دلیل تغییر','reason','','required maxlength="250"')}<p class="admin-form-note">برای انبارگردانی، تعداد شمارش‌شده را وارد کنید. تغییر موجودی، نام شما و دلیل آن ثبت می‌شود.</p>`,'stock');
   }
+  function readPOSCustomer(el){
+    const fd=new FormData(el);
+    for(const key of ['firstName','lastName','phone','address','payment'])posCustomerDraft[key]=String(fd.get(key)??'');
+    return {...posCustomerDraft};
+  }
   function posView(){
     if(!can('pos.create'))return denied();
     const products=allProducts().filter(p=>p.enabled!==false&&p.category!=='digital');
     const rows=posLines.map((line,index)=>{const p=getP(line.productId),v=getV(p,line.variantId);return `<div class="admin-pos-row"><div><strong>${e(p?.title||'محصول حذف‌شده')}</strong><small>${e(v?.name||'')}</small></div><div class="admin-pos-quantity">${action('pos-minus','',`data-index="${index}"`,'icon-btn','minus')}<b>${n(line.quantity)}</b>${action('pos-plus','',`data-index="${index}"`,'icon-btn','plus')}</div><strong>${m(D().price(p,v)*line.quantity)}</strong>${action('pos-remove','',`data-index="${index}"`,'icon-btn admin-danger','close')}</div>`;}).join('');
     const total=posLines.reduce((sum,line)=>{const p=getP(line.productId);return sum+D().price(p,getV(p,line.variantId))*line.quantity;},0);
-    return `<div class="admin-toolbar"><p>فروش مغازه بلافاصله از همان موجودی سایت کم می‌شود.</p>${pill('انبار مشترک','pill-green')}</div><div class="admin-pos-layout">${card('انتخاب محصول',products.length?`<form data-admin-form="pos-add"><div class="form-grid">${select('محصول','productId',products.map(p=>`<option value="${e(p.id)}">${e(p.title)}</option>`).join(''),'data-admin-change="pos-product"')}${select('رنگ','variantId',(products[0].variants||[]).filter(v=>v.enabled!==false).map(v=>`<option value="${e(v.id)}">${e(v.name)} · ${n(D().stockAvailable(products[0].id,v.id))} عدد</option>`).join(''))}${field('تعداد','quantity',1,'number','min="1" step="1" required')}<div class="field admin-pos-add"><button class="btn btn-dark" type="submit">${ic('plus')}افزودن به فاکتور</button></div></div></form>`:empty('کالای فیزیکی فعالی وجود ندارد.'))}${card('فاکتور فروش حضوری',`${rows||empty('محصولی به فاکتور اضافه نشده است.','bag')}<div class="admin-total"><span>مبلغ کل</span><strong>${m(total)}</strong></div><form data-admin-form="pos-sale"><div class="form-grid">${select('روش پرداخت','payment','<option value="card">کارت‌خوان</option><option value="cash">نقدی</option>')}${field('نام مشتری (اختیاری)','customer','','text','maxlength="80"')}</div><button class="btn btn-dark admin-full" type="submit" ${posLines.length?'':'disabled'}>${ic('check')}ثبت فروش و کسر موجودی</button></form>`)} </div>`;
+    return `<div class="admin-toolbar"><p>فروش مغازه بلافاصله از همان موجودی سایت کم می‌شود.</p>${pill('انبار مشترک','pill-green')}</div><div class="admin-pos-layout">${card('انتخاب محصول',products.length?`<form data-admin-form="pos-add"><div class="form-grid">${select('محصول','productId',products.map(p=>`<option value="${e(p.id)}">${e(p.title)}</option>`).join(''),'data-admin-change="pos-product"')}${select('رنگ','variantId',(products[0].variants||[]).filter(v=>v.enabled!==false).map(v=>`<option value="${e(v.id)}">${e(v.name)} · ${n(D().stockAvailable(products[0].id,v.id))} عدد</option>`).join(''))}${field('تعداد','quantity',1,'number','min="1" step="1" required')}<div class="field admin-pos-add"><button class="btn btn-dark" type="submit">${ic('plus')}افزودن به فاکتور</button></div></div></form>`:empty('کالای فیزیکی فعالی وجود ندارد.'))}${card('فاکتور فروش حضوری',`${rows||empty('محصولی به فاکتور اضافه نشده است.','bag')}<div class="admin-total"><span>مبلغ کل</span><strong>${m(total)}</strong></div><form data-admin-form="pos-sale" autocomplete="off" aria-busy="${posSubmitting}"><div class="form-grid">${field('نام مشتری','firstName',posCustomerDraft.firstName,'text','required maxlength="50" autocomplete="off"')}${field('نام خانوادگی مشتری','lastName',posCustomerDraft.lastName,'text','required maxlength="50" autocomplete="off"')}${field('شماره موبایل مشتری','phone',posCustomerDraft.phone,'tel','required maxlength="30" inputmode="tel" dir="ltr" autocomplete="off" placeholder="09123456789"')}${select('روش پرداخت','payment',`<option value="card" ${posCustomerDraft.payment==='card'?'selected':''}>کارت‌خوان</option><option value="cash" ${posCustomerDraft.payment==='cash'?'selected':''}>نقدی</option>`)}<div class="admin-span-2">${textarea('آدرس مشتری (اختیاری)','address',posCustomerDraft.address,'maxlength="500" autocomplete="off"')}</div><p class="admin-span-2 admin-form-note">نام، نام خانوادگی و شماره موبایل مشتری الزامی است. آدرس را در صورت نیاز وارد کنید.</p></div><button class="btn btn-dark admin-full" type="submit" ${posLines.length&&!posSubmitting?'':'disabled'}>${ic('check')}ثبت فروش و کسر موجودی</button></form>`)} </div>`;
   }
   function orderTable(orders){return orders.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>سفارش</th><th>مشتری / کانال</th><th>مبلغ</th><th>وضعیت</th><th>جزئیات</th></tr></thead><tbody>${orders.map(o=>`<tr><td><strong>${e(o.number||o.id)}</strong><small>${stamp(o.createdAt)}</small></td><td><strong>${e(typeof o.customer==='string'?o.customer:o.customer?.name||o.customer?.phone||'مشتری')}</strong><small>${o.type==='pos'?'فروش حضوری':'فروش اینترنتی'}</small></td><td>${m(o.total)}</td><td>${pill(statuses[o.status]||e(o.status),o.status==='cancelled'?'pill-red':o.status==='completed'?'pill-green':'pill-orange')}</td><td>${action('order','مشاهده',`data-id="${e(o.id)}"`,'admin-link','arrow')}</td></tr>`).join('')}</tbody></table></div>`:empty('هنوز سفارشی ثبت نشده است.','bag');}
   function ordersView(){if(!can('orders.view'))return denied();return `<div class="admin-toolbar"><p>تا ۵۰۰ سفارش اخیر حضوری، اینترنتی و دیجیتال در این فهرست نمایش داده می‌شوند.</p>${pill(n(D().state.orders.length)+' سفارش')}</div>${card('سفارش‌های اخیر',orderTable(D().state.orders.slice()))}`;}
@@ -300,7 +308,7 @@
     }catch(err){error(err);}finally{delete button.dataset.busy;button.disabled=false;}
   });
   document.addEventListener('change',function(event){
-    const control=event.target;if(!control.dataset.adminChange)return;const formEl=control.closest('form');
+    const control=event.target;const posForm=control.closest('[data-admin-form="pos-sale"]');if(posForm)readPOSCustomer(posForm);if(!control.dataset.adminChange)return;const formEl=control.closest('form');
     try{
       if(control.dataset.adminChange==='product-image'){ensure('products.edit');if(formEl.dataset.busy)throw new Error('تا پایان ذخیرهٔ محصول صبر کنید.');const file=control.files?.[0];if(!file)return;if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('عکس JPG، PNG یا WebP انتخاب کنید.');if(file.size>8388608)throw new Error('حجم عکس باید حداکثر ۸ مگابایت باشد.');clearProductImagePreview();productImageFile=file;productImagePreview=URL.createObjectURL(file);formEl.querySelector('.admin-product-photo-preview').innerHTML=productPhotoPreview();formEl.querySelector('[data-product-photo-filename]').textContent=file.name;}
       if(control.dataset.adminChange==='stock-product'||control.dataset.adminChange==='pos-product'){const p=getP(control.value),isStock=control.dataset.adminChange==='stock-product';const list=formEl.querySelector('[name="variantId"]');list.innerHTML=(p?.variants||[]).filter(v=>v.enabled!==false).map(v=>`<option value="${e(v.id)}">${e(v.name)} · ${n(isStock?v.stock:D().stockAvailable(p.id,v.id))} عدد</option>`).join('');}
@@ -309,13 +317,24 @@
     }catch(err){error(err);}
   });
   document.addEventListener('submit',async function(event){
-    const el=event.target;if(!el.matches('[data-admin-form]'))return;event.preventDefault();if(el.dataset.busy)return;clearFormError(el);el.dataset.busy='1';el.setAttribute('aria-busy','true');const submit=el.querySelector('[type=submit]');if(submit)submit.disabled=true;const fd=new FormData(el),name=el.dataset.adminForm,id=el.dataset.id;
+    const el=event.target;if(!el.matches('[data-admin-form]'))return;event.preventDefault();if(el.dataset.busy||(el.dataset.adminForm==='pos-sale'&&posSubmitting))return;clearFormError(el);el.dataset.busy='1';el.setAttribute('aria-busy','true');const submit=el.querySelector('[type=submit]');if(submit)submit.disabled=true;const fd=new FormData(el),name=el.dataset.adminForm,id=el.dataset.id;
     try{
       if(name==='category'||name==='category-delete'){const result=await window.CategoryAdmin.submit(el);success(result.message);return;}
       if(name==='product'){ensure('products.edit');const p=readProduct(el);p.price=amount(p.price);if(Object.hasOwn(p,'cost'))p.cost=amount(p.cost);if(!p.title)throw new Error('نام محصول را وارد کنید.');if(!p.variants.length)throw new Error('حداقل یک رنگ یا مدت برای محصول تعریف کنید.');if(p.variants.some(v=>!v.name))throw new Error('نام تمام گزینه‌ها را وارد کنید.');p.variants=p.variants.map(v=>{v={...v,stock:amount(v.stock)};if(productStockBaseline.has(v.id)&&Number(v.stock)===productStockBaseline.get(v.id)){const value={...v};delete value.stock;return value;}return v;});if(productImageFile){const result=await D().uploadProductImage(productImageFile);p.imageUrl=result.imageUrl;productDraft.imageUrl=result.imageUrl;productImageFile=null;clearProductImagePreview();const preview=el.querySelector('.admin-product-photo-preview');if(preview)preview.innerHTML=productPhotoPreview();}await D().saveProduct(p);productDraft=null;clearProductImagePreview();success('محصول، عکس و موجودی رنگ‌ها ذخیره شد.');return;}
       if(name==='stock'){ensure('inventory.edit');const p=getP(fd.get('productId')),v=getV(p,fd.get('variantId'));if(!v)throw new Error('یک گزینهٔ محصول انتخاب کنید.');const quantity=amount(fd.get('quantity'));if(!Number.isInteger(quantity)||quantity<0)throw new Error('تعداد باید عدد صحیح و صفر یا بیشتر باشد.');const op=fd.get('operation'),delta=op==='count'?quantity-Number(v.stock):op==='subtract'?-quantity:quantity;const reason=String(fd.get('reason')||'').trim();if(!reason)throw new Error('دلیل تغییر موجودی را وارد کنید.');if(delta===0)throw new Error('تعداد واردشده تغییری در موجودی ایجاد نمی‌کند.');await D().adjustStock(p.id,v.id,delta,reason);success('گردش انبار ثبت شد.');return;}
       if(name==='pos-add'){ensure('pos.create');const productId=fd.get('productId'),variantId=fd.get('variantId'),quantity=amount(fd.get('quantity'));if(!Number.isInteger(quantity)||quantity<1)throw new Error('تعداد معتبر وارد کنید.');const existing=posLines.find(l=>l.productId===productId&&l.variantId===variantId);if(quantity+(existing?.quantity||0)>D().stockAvailable(productId,variantId))throw new Error('موجودی قابل فروش کافی نیست.');if(existing)existing.quantity+=quantity;else posLines.push({productId,variantId,quantity});render('pos');U().toast('محصول به فاکتور اضافه شد.');return;}
-      if(name==='pos-sale'){ensure('pos.create');if(!posLines.length)throw new Error('فاکتور خالی است.');const sale=await D().sellPOS({lines:posLines.map(l=>({...l})),payment:fd.get('payment'),customer:String(fd.get('customer')||'مشتری حضوری').trim()});posLines=[];refresh();U().toast('فروش حضوری ثبت و موجودی سایت به‌روزرسانی شد.');if(sale?.id&&can('orders.view'))orderForm(sale.id);return;}
+      if(name==='pos-sale'){
+        ensure('pos.create');if(!posLines.length)throw new Error('فاکتور خالی است.');
+        const draft=readPOSCustomer(el),firstName=draft.firstName.trim(),lastName=draft.lastName.trim();
+        if(!firstName)throw new Error('نام مشتری را وارد کنید.');if(!lastName)throw new Error('نام خانوادگی مشتری را وارد کنید.');
+        const phone=digits(draft.phone).replace(/[\s()-]/g,'').replace(/^\+98/,'0').replace(/^0098/,'0');
+        if(!/^09[0-9]{9}$/.test(phone))throw new Error('شماره موبایل معتبر ایرانی مشتری را وارد کنید.');
+        const address=draft.address.trim(),cashierId=D().state.currentUser?.id;posSubmitting=true;
+        const sale=await D().sellPOS({lines:posLines.map(l=>({...l})),payment:draft.payment,customer:{firstName,lastName,phone},address:address?{line:address}:null});
+        posLines=[];posCustomerDraft=blankPOSCustomer();
+        if(D().state.currentUser?.id!==cashierId)return;
+        refresh();U().toast('فروش حضوری و مشخصات مشتری ثبت و موجودی سایت به‌روزرسانی شد.');if(sale?.id&&can('orders.view'))orderForm(sale.id);return;
+      }
       if(name==='payment-settings'){ensure('settings.edit');const settings={zarinpalEnabled:fd.has('zarinpalEnabled'),digipayEnabled:fd.has('digipayEnabled'),bankTransferEnabled:fd.has('bankTransferEnabled')};for(const key of ['bankHolder','bankName','bankCard','bankIban','bankInstructions'])settings[key]=String(fd.get(key)||'').trim();await D().savePaymentSettings(settings);refresh();U().toast('روش‌های پرداخت و اطلاعات حساب ذخیره شدند.');return;}
       if(name==='hero-products'){ensure('settings.edit');const ids=fd.getAll('heroProductId').map(String).filter(Boolean);if(new Set(ids).size!==ids.length)throw new Error('هر محصول را فقط یک بار در ویترین انتخاب کنید.');await D().saveSettings({heroProductIds:ids});refresh();U().toast('ویترین صفحه اول ذخیره شد.');return;}
       if(name==='transfer-review'){ensure('orders.edit');ensure('finance.view');if(!fd.has('confirmed'))throw new Error('ابتدا بررسی اطلاعات و گردش حساب را تأیید کنید.');const decision=fd.get('decision');if(!['approve','reject'].includes(decision))throw new Error('نتیجه بررسی را انتخاب کنید.');await D().reviewTransfer(id,decision,String(fd.get('note')||'').trim());refresh();orderForm(id);U().toast(decision==='approve'?'نتیجه تأیید واریز ثبت شد.':'واریز رد و پرداخت بسته شد.');return;}
@@ -327,7 +346,14 @@
       if(name==='user-role'){ensure('users.edit');await D().setUserRole(id,fd.get('roleId'));success('نقش کاربر تغییر کرد.');return;}
       if(name==='shipping'){ensure('shipping.edit');const cod=fd.get('feeType')==='cod';await D().saveShipping({...(id?{id}:{}),name:String(fd.get('name')||'').trim(),description:String(fd.get('description')||'').trim(),fee:cod?0:amount(fd.get('fee')),payOnDelivery:cod,enabled:fd.has('enabled')});success('روش ارسال ذخیره شد.');return;}
       if(name==='appearance'){appearanceDraft=readAppearance(el);appearanceReview();return;}
-    }catch(err){error(err,el);}finally{delete el.dataset.busy;el.removeAttribute('aria-busy');if(submit)submit.disabled=false;}
+    }catch(err){error(err,name==='pos-sale'?(document.querySelector('[data-admin-form="pos-sale"]')||el):el);}finally{
+      delete el.dataset.busy;el.removeAttribute('aria-busy');if(submit)submit.disabled=false;
+      if(name==='pos-sale'){posSubmitting=false;const live=document.querySelector('[data-admin-form="pos-sale"]');if(live){live.setAttribute('aria-busy','false');const button=live.querySelector('[type=submit]');if(button)button.disabled=posLines.length===0;}}
+    }
+  });
+  D().subscribe(()=>{
+    const user=D().state.currentUser,key=user?user.id+'|'+user.roleId+'|'+can('pos.create'):'';
+    if(key!==posCashierKey){posCashierKey=key;posLines=[];posCustomerDraft=blankPOSCustomer();document.querySelector('[data-admin-form="pos-sale"]')?.replaceChildren();}
   });
   window.Admin={render};
 })();

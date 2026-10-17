@@ -193,3 +193,20 @@ resumability, preserved catalog/orders/reservations/settings, repeat upgrades,
 deleted-root preservation and concurrent requests. The browser suite intercepts
 all API replies and verifies the owner-only top banner, one-click busy state,
 inline errors/retry, verified completion and mobile light/dark readability.
+
+POS customer identity has focused API/database and actual-browser checks:
+
+```sh
+python3 tests/pos_customers.py --private-dir /tmp/dezhawo-qa
+DEZHAWO_QA_SECRETS=/tmp/dezhawo-qa/secrets.json \
+DEZHAWO_QA_OUTBOX=/tmp/dezhawo-qa/outbox \
+node tests/pos_customers_browser.js
+```
+
+Run these sequentially against the disposable QA runtime. They verify required
+first/last names and Iranian mobile numbers, optional addresses, normalized
+stored invoice data, privacy and authorization, unchanged stock on validation
+failures, and concurrent last-unit sales. Browser checks exercise draft retention
+across invoice edits/refreshes, inline errors, duplicate blocking during a pending
+save and clearing customer fields only after a successful sale. Fixtures are
+removed afterward; no database migration or account creation is required.

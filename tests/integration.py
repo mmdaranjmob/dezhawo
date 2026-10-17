@@ -258,16 +258,19 @@ class Checks:
     def stock(self, variant_id):
         return int(self.sql("SELECT stock FROM product_variants WHERE id='" + variant_id + "';"))
 
+    def pos_customer(self):
+        return {'firstName': 'خریدار', 'lastName': 'آزمون', 'phone': '09120000000'}
+
     def inventory_pos(self):
         product, variant = self.product('_pos', 5)
         self.owner.action('inventory.adjust', {'productId': product, 'variantId': variant,
                           'delta': 3, 'reason': 'ورود کالا آزمون'})
         assert self.stock(variant) == 8
         sale = self.owner.action('pos.sale', {'lines': [{'productId': product, 'variantId': variant,
-                                  'quantity': 2}], 'payment': 'card', 'customer': 'مشتری حضوری آزمون'})
+                                  'quantity': 2}], 'payment': 'card', 'customer': self.pos_customer()})
         assert self.stock(variant) == 6
         self.owner.action('pos.sale', {'lines': [{'productId': product, 'variantId': variant,
-                           'quantity': 7}], 'payment': 'cash', 'customer': ''}, expected=409)
+                           'quantity': 7}], 'payment': 'cash', 'customer': self.pos_customer()}, expected=409)
         assert self.stock(variant) == 6
         self.pos_order = sale.get('id', sale.get('orderId'))
         assert self.pos_order, 'POS did not return order identifier'
@@ -286,12 +289,12 @@ class Checks:
         accepted = next(result[1]['data'] for result in results if result[0] == 200)
         assert 'unitCost' not in json.dumps(accepted), 'reservation exposed private acquisition cost'
         self.owner.action('pos.sale', {'lines': [{'productId': product, 'variantId': variant,
-                          'quantity': 1}], 'payment': 'cash', 'customer': ''}, expected=409)
+                          'quantity': 1}], 'payment': 'cash', 'customer': self.pos_customer()}, expected=409)
         assert self.stock(variant) == 1
         winner = clients[[result[0] for result in results].index(200)]
         winner.action('reservation.release', {})
         self.owner.action('pos.sale', {'lines': [{'productId': product, 'variantId': variant,
-                          'quantity': 1}], 'payment': 'cash', 'customer': ''})
+                          'quantity': 1}], 'payment': 'cash', 'customer': self.pos_customer()})
         assert self.stock(variant) == 0
 
     def parallel_pos(self):
@@ -304,7 +307,7 @@ class Checks:
             self.otp_sign_in(phone, client)
         def sell(client):
             return client.request('/api.php?action=pos.sale', {'lines': [{'productId': product,
-                                  'variantId': variant, 'quantity': 1}], 'payment': 'cash', 'customer': ''})
+                                  'variantId': variant, 'quantity': 1}], 'payment': 'cash', 'customer': self.pos_customer()})
         with ThreadPoolExecutor(2) as pool:
             results = list(pool.map(sell, clients))
         assert sorted(result[0] for result in results) == [200, 409], 'parallel POS sales oversold last unit'
@@ -372,7 +375,7 @@ class Checks:
         self.sql("UPDATE reservations r JOIN orders o ON o.reservation_id=r.id SET r.expires_at=DATE_SUB(UTC_TIMESTAMP(),INTERVAL 1 SECOND) WHERE o.id='"+order['orderId']+"';")
         self.customer.action('order.resume', {'id': order['orderId']}, expected=409)
         self.owner.action('pos.sale', {'lines': [{'productId': product, 'variantId': variant,
-                          'quantity': 1}], 'payment': 'cash', 'customer': ''})
+                          'quantity': 1}], 'payment': 'cash', 'customer': self.pos_customer()})
         callback = urllib.parse.urlsplit(order['redirectUrl'])
         path = callback.path + '?' + callback.query
         self.customer.request(path)

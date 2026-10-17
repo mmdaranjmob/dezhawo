@@ -4,5 +4,6 @@
 [data-money-input]{text-align:left;unicode-bidi:plaintext;font-variant-numeric:tabular-nums}
 [data-money-input]::placeholder{direction:rtl;text-align:right}
 [data-admin-form][aria-busy=true] button[type=submit]{cursor:wait}
+.admin-pos-layout [data-admin-form="pos-sale"] .admin-span-2{grid-column:1/-1}
 html[data-theme=dark] .admin-form-error{color:#ffd1c5;background:#38241f;border-color:#855044}
 html[data-theme=dark] [data-admin-form] [aria-invalid=true]{border-color:#ffad97;outline-color:#ffad97}

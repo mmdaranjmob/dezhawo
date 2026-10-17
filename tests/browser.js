@@ -105,7 +105,11 @@ function testCode(phone) {
     await f.locator('[name="productId"]').selectOption(product.id);
     await f.locator('[name="variantId"]').selectOption(blackVariant.id);
     await f.locator('[type="submit"]').click();
-    await staff.locator('[data-admin-form="pos-sale"] [type="submit"]').click();
+    const posSale=staff.locator('[data-admin-form="pos-sale"]');
+    await posSale.locator('[name="firstName"]').fill('خریدار');
+    await posSale.locator('[name="lastName"]').fill('آزمون');
+    await posSale.locator('[name="phone"]').fill('09120000000');
+    await posSale.locator('[type="submit"]').click();
     await staff.waitForFunction(id => DZ.getProduct(id).variants.find(v=>v.name==='مشکی').stock === 4,product.id);
     if(await staff.locator('#modalDialog').isVisible())await staff.locator('[data-action="close-modal"]').click();
     pass('POS immediately deducts shared server inventory');

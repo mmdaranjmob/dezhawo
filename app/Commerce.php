@@ -390,6 +390,58 @@ function commerce_resume(array $input): array
     return ['orderId' => $id, 'number' => $order['number'], 'paymentMethod' => $order['payment'], 'redirectUrl' => payment_create($id)];
 }
 
+/** Validate POS identity before starting any stock or order transaction. */
+function commerce_pos_customer(array $input): array
+{
+    $customer = $input['customer'] ?? null;
+    if (!is_array($customer) || array_is_list($customer)) {
+        app_error('نام، نام خانوادگی و شماره موبایل مشتری را وارد کنید.');
+    }
+    $names = [];
+    foreach (['firstName' => 'نام مشتری', 'lastName' => 'نام خانوادگی مشتری'] as $key => $label) {
+        $value = $customer[$key] ?? null;
+        if (!is_string($value) || !mb_check_encoding($value, 'UTF-8') || preg_match('/\p{Cc}/u', $value)) {
+            app_error($label . ' معتبر نیست.');
+        }
+        $value = preg_replace('/^\s+|\s+$/u', '', $value) ?? '';
+        if ($value === '') {
+            app_error($label . ' را وارد کنید.');
+        }
+        if (mb_strlen($value, 'UTF-8') > 50) {
+            app_error($label . ' باید حداکثر ۵۰ نویسه باشد.');
+        }
+        $names[] = $value;
+    }
+    $name = implode(' ', $names);
+    if (mb_strlen($name, 'UTF-8') > 100) {
+        app_error('نام و نام خانوادگی مشتری روی هم باید حداکثر ۱۰۰ نویسه باشد.');
+    }
+    $rawPhone = $customer['phone'] ?? null;
+    if (!is_string($rawPhone) || !mb_check_encoding($rawPhone, 'UTF-8') || mb_strlen($rawPhone, 'UTF-8') > 30 || preg_match('/\p{Cc}/u', $rawPhone)) {
+        app_error('شماره موبایل معتبر مشتری را وارد کنید.');
+    }
+    $phone = phone_value($rawPhone);
+    $address = null;
+    $source = $input['address'] ?? null;
+    if ($source !== null) {
+        if (!is_array($source) || ($source !== [] && array_is_list($source))) {
+            app_error('آدرس مشتری معتبر نیست.');
+        }
+        $line = $source['line'] ?? '';
+        if (!is_string($line) || !mb_check_encoding($line, 'UTF-8') || preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/u', $line)) {
+            app_error('آدرس مشتری معتبر نیست.');
+        }
+        $line = preg_replace('/^\s+|\s+$/u', '', $line) ?? '';
+        if (mb_strlen($line, 'UTF-8') > 500) {
+            app_error('آدرس مشتری باید حداکثر ۵۰۰ نویسه باشد.');
+        }
+        if ($line !== '') {
+            $address = ['line' => $line];
+        }
+    }
+    return ['name' => $name, 'phone' => $phone, 'address' => $address];
+}
+
 function commerce_pos(array $input): array
 {
     $user = require_permission('pos.create');
@@ -417,11 +469,8 @@ function commerce_pos(array $input): array
             app_error('تعداد فروش بیش از حد مجاز است.');
         }
     }
-    $name = clean($input['customer'] ?? 'مشتری حضوری', 100);
-    if ($name === '') {
-        $name = 'مشتری حضوری';
-    }
-    return transaction(function () use ($user, $aggregated, $payment, $name): array {
+    $customer = commerce_pos_customer($input);
+    return transaction(function () use ($user, $aggregated, $payment, $customer): array {
         $variants = commerce_lock_variants(array_keys($aggregated));
         $lines = [];
         foreach ($aggregated as $vid => $line) {
@@ -430,7 +479,11 @@ function commerce_pos(array $input): array
         $totals = commerce_totals($lines);
         $id = uid('pos');
         $number = commerce_order_number('POS');
-        commerce_execute("INSERT INTO orders (id,number,type,user_id,customer_name,customer_phone,telegram_username,address_json,status,payment_status,subtotal,shipping_fee,total,shipping_id,shipping_name,pay_on_delivery,payment,tracking_code,stock_returned,reservation_id,created_at,updated_at) VALUES (?,?,'pos',?,?,NULL,NULL,NULL,'completed','paid',?,0,?,NULL,'تحویل حضوری',0,?,'',0,NULL,UTC_TIMESTAMP(),UTC_TIMESTAMP())", [$id, $number, $user['id'], $name, $totals['subtotal'], $totals['total'], $payment]);
+        commerce_execute("INSERT INTO orders (id,number,type,user_id,customer_name,customer_phone,telegram_username,address_json,status,payment_status,subtotal,shipping_fee,total,shipping_id,shipping_name,pay_on_delivery,payment,tracking_code,stock_returned,reservation_id,created_at,updated_at) VALUES (?,?,'pos',?,?,?,NULL,?,'completed','paid',?,0,?,NULL,'تحویل حضوری',0,?,'',0,NULL,UTC_TIMESTAMP(),UTC_TIMESTAMP())", [
+            $id, $number, $user['id'], $customer['name'], $customer['phone'],
+            $customer['address'] === null ? null : json_value($customer['address']),
+            $totals['subtotal'], $totals['total'], $payment,
+        ]);
         commerce_insert_items($id, $lines);
         foreach ($lines as $line) {
             if ($line['category'] !== 'digital') {
