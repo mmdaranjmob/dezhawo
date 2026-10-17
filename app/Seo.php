@@ -76,7 +76,8 @@ function seo_public_products(?string $id = null): array
         if (!empty($category['legacyKey'])) $legacyMap[(string)$category['legacyKey']] = (string)$category['id'];
     }
     $categoryColumn = categories_ready() ? 'p.category_id' : 'p.category';
-    $sql = 'SELECT p.id,p.title,p.category,' . $categoryColumn . ' AS category_id,p.badge,p.description,p.image_url,p.price,p.updated_at FROM products p WHERE p.enabled=1'
+    $galleryColumn = product_gallery_ready() ? 'p.gallery_json' : 'NULL AS gallery_json';
+    $sql = 'SELECT p.id,p.title,p.category,' . $categoryColumn . ' AS category_id,p.badge,p.description,p.image_url,' . $galleryColumn . ',p.price,p.updated_at FROM products p WHERE p.enabled=1'
         . ($id === null ? '' : ' AND p.id=?')
         . ' AND EXISTS (SELECT 1 FROM product_variants v WHERE v.product_id=p.id AND v.enabled=1) ORDER BY p.created_at,p.id';
     $query = db()->prepare($sql);
@@ -89,13 +90,12 @@ function seo_public_products(?string $id = null): array
         if (!$row['categoryPath']) continue;
         $row['variants'] = [];
         $row['price'] = (int)$row['price'];
-        $row['image'] = null;
-        $path = product_image_public_url($row['image_url']);
-        if ($path !== null) {
-            // The image helper includes a possible installation subdirectory already.
-            $base = parse_url(seo_base_url());
-            $row['image'] = $base['scheme'] . '://' . $base['host'] . (isset($base['port']) ? ':' . $base['port'] : '') . $path;
-        }
+        // The image helpers include a possible installation subdirectory already.
+        $base = parse_url(seo_base_url());
+        $origin = $base['scheme'] . '://' . $base['host'] . (isset($base['port']) ? ':' . $base['port'] : '');
+        $paths = array_merge([product_image_public_url($row['image_url'])], product_gallery_public_urls($row['gallery_json'], $row['image_url']));
+        $row['images'] = array_values(array_unique(array_map(static fn(string $path): string => $origin . $path, array_filter($paths))));
+        $row['image'] = $row['images'][0] ?? null;
         $products[(string)$row['id']] = $row;
     }
     if (!$products) return [];
@@ -123,6 +123,29 @@ function seo_public_products(?string $id = null): array
     return array_values($products);
 }
 
+/** Prefer the same leaf, then the nearest shared ancestor, within one product type. */
+function seo_related_products(array $product, array $catalog, int $limit = 6): array
+{
+    $path = array_column($product['categoryPath'] ?? [], 'id');
+    $digital = $product['category'] === 'digital';
+    $ranked = [];
+    foreach ($catalog as $index => $candidate) {
+        if ($candidate['id'] === $product['id'] || ($candidate['category'] === 'digital') !== $digital
+            || empty($candidate['categoryPath']) || empty($candidate['variants'])) continue;
+        $otherPath = array_column($candidate['categoryPath'], 'id');
+        $common = 0;
+        foreach ($path as $depth => $categoryId) {
+            if (($otherPath[$depth] ?? null) !== $categoryId) break;
+            $common++;
+        }
+        $sameLeaf = end($path) === end($otherPath);
+        $ranked[] = ['product'=>$candidate, 'score'=>($sameLeaf ? 10000 : 0) + $common * 100,
+            'distance'=>count($path) + count($otherPath) - 2 * $common, 'index'=>$index];
+    }
+    usort($ranked, static fn(array $a, array $b): int => $b['score'] <=> $a['score'] ?: $a['distance'] <=> $b['distance'] ?: $a['index'] <=> $b['index']);
+    return array_column(array_slice($ranked, 0, max(0, min(6, $limit))), 'product');
+}
+
 function seo_json(array $value): string
 {
     return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR);
@@ -134,7 +157,7 @@ function seo_product_schema(array $product): array
     $schema = ['@context'=>'https://schema.org', '@type'=>'Product', '@id'=>$url . '#product',
         'name'=>$product['title'], 'url'=>$url, 'description'=>seo_summary($product['description'], 500),
         'category'=>seo_product_category($product), 'sku'=>(string)$product['id']];
-    if ($product['image']) $schema['image'] = [$product['image']];
+    if ($product['image']) $schema['image'] = $product['images'] ?? [$product['image']];
     $schema['offers'] = array_map(static fn(array $variant): array => [
         '@type'=>'Offer', 'url'=>$url, 'sku'=>(string)$variant['id'], 'name'=>$product['title'] . ' — ' . $variant['name'],
         // Stored/displayed prices are toman. Schema.org uses the ISO currency IRR.
@@ -214,13 +237,25 @@ function seo_product_detail(array $context): void
     foreach ($product['categoryPath'] ?? [] as $category) {
         echo '<span aria-hidden="true">/</span><a href="index.php?category=' . rawurlencode((string)$category['id']) . '#catalog">' . seo_escape($category['name']) . '</a>';
     }
-    echo '<span aria-hidden="true">/</span><span aria-current="page">' . seo_escape($product['title']) . '</span></nav><div class="product-page-grid"><div class="product-page-photo">';
+    echo '<span aria-hidden="true">/</span><span aria-current="page">' . seo_escape($product['title']) . '</span></nav><div class="product-page-grid"><div class="product-gallery" data-product-gallery data-gallery-product="' . seo_escape($product['id']) . '"><div class="product-page-photo" data-gallery-display>';
     if ($product['image']) {
         echo '<img class="product-photo" src="' . seo_escape($product['image']) . '" alt="' . seo_escape($product['title']) . '" width="800" height="800" fetchpriority="high" decoding="async">';
     } else {
         echo '<span class="product-photo-placeholder">تصویر محصول ثبت نشده است.</span>';
     }
-    echo '</div><div class="product-page-copy"><p class="eyebrow">' . seo_escape(seo_product_category($product)) . '</p><h1 id="productPageTitle">' . seo_escape($product['title']) . '</h1><p class="product-page-description">' . nl2br(seo_escape($product['description'])) . '</p><div class="product-page-price">از ' . seo_number($product['lowPrice']) . ' <span class="currency">تومان</span></div>';
+    echo '</div>';
+    $images = $product['images'] ?? array_filter([$product['image']]);
+    if (count($images) > 1) {
+        echo '<div class="product-gallery-thumbnails" role="group" aria-label="عکس‌های ' . seo_escape($product['title']) . '">';
+        foreach ($images as $index => $image) {
+            $label = ($index === 0 ? 'عکس اصلی' : 'عکس ' . seo_number($index + 1)) . ' ' . $product['title'];
+            echo '<button type="button" class="product-gallery-thumbnail' . ($index === 0 ? ' is-current' : '') . '" data-action="gallery-image" data-gallery-index="' . $index . '" data-gallery-src="' . seo_escape($image) . '" data-gallery-alt="' . seo_escape($label) . '" aria-label="نمایش ' . seo_escape($label) . '"' . ($index === 0 ? ' aria-current="true"' : '') . '><img src="' . seo_escape($image) . '" alt="" width="96" height="96" loading="lazy" decoding="async"></button>';
+        }
+        echo '</div>';
+    }
+    echo '</div><div class="product-page-copy"><p class="eyebrow">' . seo_escape(seo_product_category($product)) . '</p><h1 id="productPageTitle">' . seo_escape($product['title']) . '</h1>';
+    if (trim((string)$product['description']) !== '') echo '<div class="product-description-block"><h2>توضیحات محصول</h2><p class="product-page-description">' . seo_escape($product['description']) . '</p></div>';
+    echo '<div class="product-page-price">از ' . seo_number($product['lowPrice']) . ' <span class="currency">تومان</span></div>';
     echo '<p class="stock-note">' . ($product['available'] ? 'موجود و قابل سفارش' : 'در حال حاضر ناموجود') . '</p><div class="product-page-variants"><h2>' . ($product['category'] === 'digital' ? 'مدت اشتراک و قیمت' : 'رنگ‌ها و قیمت') . '</h2><ul>';
     foreach ($product['variants'] as $variant) {
         echo '<li><span>' . seo_escape($variant['name']) . '</span><strong>' . seo_number($variant['price']) . ' تومان</strong><span>' . ($variant['available'] > 0 ? 'موجود' : 'ناموجود') . '</span></li>';

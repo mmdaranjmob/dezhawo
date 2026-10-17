@@ -19,6 +19,8 @@ function database_upgrade_registry(): array
             'complete'=>'database_upgrade_images_complete', 'apply'=>'database_upgrade_images_apply'],
         ['id'=>'categories-20261016', 'label'=>'دسته‌بندی و زیردسته‌ها',
             'complete'=>'database_upgrade_categories_complete', 'apply'=>'database_upgrade_categories_apply'],
+        ['id'=>'product-gallery-20261017', 'label'=>'گالری تصاویر محصولات',
+            'complete'=>'database_upgrade_gallery_complete', 'apply'=>'database_upgrade_gallery_apply'],
     ];
 }
 
@@ -90,6 +92,11 @@ function database_upgrade_images_complete(array $snapshot): bool
     return !empty($snapshot['columns']['products']['image_url']);
 }
 
+function database_upgrade_gallery_complete(array $snapshot): bool
+{
+    return !empty($snapshot['columns']['products']['gallery_json']);
+}
+
 function database_upgrade_categories_complete(array $snapshot): bool
 {
     return database_upgrade_category_table_complete($snapshot)
@@ -149,6 +156,13 @@ function database_upgrade_images_apply(): void
 {
     if (!database_upgrade_images_complete(database_upgrade_snapshot())) {
         db()->exec('ALTER TABLE products ADD COLUMN image_url VARCHAR(255) NULL AFTER art');
+    }
+}
+
+function database_upgrade_gallery_apply(): void
+{
+    if (!database_upgrade_gallery_complete(database_upgrade_snapshot())) {
+        db()->exec('ALTER TABLE products ADD COLUMN gallery_json TEXT NULL AFTER image_url');
     }
 }
 

@@ -112,13 +112,15 @@ function admin_products(bool $staff = false): array
     $products = [];
     $finance = can('finance.view');
     $taxonomyReady = categories_ready();
+    $galleryReady = product_gallery_ready();
     $categoryMap = categories_map();
-    foreach (admin_query('SELECT id,title,category,' . ($taxonomyReady ? 'category_id' : 'category AS category_id') . ',badge,description,art,image_url,price,cost,enabled FROM products' . ($staff ? '' : ' WHERE enabled=1') . ' ORDER BY created_at,id')->fetchAll(PDO::FETCH_ASSOC) as $row) {
+    foreach (admin_query('SELECT id,title,category,' . ($taxonomyReady ? 'category_id' : 'category AS category_id') . ',badge,description,art,image_url,' . ($galleryReady ? 'gallery_json' : 'NULL AS gallery_json') . ',price,cost,enabled FROM products' . ($staff ? '' : ' WHERE enabled=1') . ' ORDER BY created_at,id')->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $categoryId = $row['category_id'] ?: $row['category'];
         if (!$staff && !category_lineage_enabled($categoryId,$categoryMap)) continue;
         $product = ['id'=>$row['id'],'title'=>$row['title'],'category'=>$row['category'],'badge'=>$row['badge'],
             'categoryId'=>$categoryId,
             'description'=>$row['description'],'art'=>$row['art'],'imageUrl'=>product_image_public_url($row['image_url']),'price'=>(int)$row['price'],
+            'galleryUrls'=>product_gallery_public_urls($row['gallery_json'],$row['image_url']),
             'enabled'=>(bool)$row['enabled'],'variants'=>[]];
         if ($finance) $product['cost'] = (int)$row['cost'];
         $products[$row['id']] = $product;
@@ -296,6 +298,9 @@ function admin_product_save(array $input): array
     $art = admin_text($raw['art'] ?? ($category==='digital'?'telegram':$category),20);
     if (!in_array($art,['case','glass','cable','charger','audio','telegram'],true)) app_error('نمای محصول معتبر نیست.');
     $imagePath = array_key_exists('imageUrl', $raw) ? product_image_path($raw['imageUrl']) : null;
+    $galleryPaths = array_key_exists('galleryUrls', $raw) ? product_gallery_paths($raw['galleryUrls'],$imagePath) : null;
+    $galleryReady = product_gallery_ready();
+    if (!$galleryReady && $galleryPaths) app_error('برای ذخیرهٔ عکس‌های تکمیلی، مدیر اصلی باید دکمهٔ «ارتقای دیتابیس» بالای سایت را بزند. عکس اصلی همچنان قابل ذخیره است.',503);
     if (!isset($raw['variants']) || !is_array($raw['variants']) || !array_is_list($raw['variants']) || count($raw['variants']) < 1 || count($raw['variants']) > 100) app_error('بین یک تا صد رنگ یا گزینه وارد کنید.');
     $variants = [];
     foreach ($raw['variants'] as $value) {
@@ -310,13 +315,15 @@ function admin_product_save(array $input): array
             'price'=>isset($variant['price']) && $variant['price']!=='' ? int_value($variant['price'],'قیمت رنگ') : null,
             'enabled'=>array_key_exists('enabled',$variant) ? admin_bool($variant['enabled']) : true];
     }
-    return transaction(function() use ($raw,$id,$title,$price,$badge,$description,$art,$imagePath,$variants,$user,$stockReason): array {
+    return transaction(function() use ($raw,$id,$title,$price,$badge,$description,$art,$imagePath,$galleryPaths,$galleryReady,$variants,$user,$stockReason): array {
         // Category mutations take these locks first as well: no branch can be
         // disabled/deleted or change product type during product assignment.
         $categoryMap = categories_map(categories_ready());
         $existing = admin_one('SELECT * FROM products WHERE id=? FOR UPDATE',[$id]);
         [$category,$categoryId] = category_for_product($raw,$existing,$categoryMap);
         $imagePath = array_key_exists('imageUrl', $raw) ? $imagePath : ($existing['image_url'] ?? null);
+        $galleryPaths = $galleryPaths ?? product_gallery_stored_paths($existing['gallery_json'] ?? null,$imagePath);
+        $galleryPaths = array_values(array_filter($galleryPaths,fn(string $path): bool => $path !== $imagePath));
         $existingVariants = $existing ? admin_variant_locks($id) : [];
         $enabled = array_key_exists('enabled',$raw) ? admin_bool($raw['enabled']) : (bool)($existing['enabled'] ?? 1);
         if ($existing && $existing['enabled'] && !$enabled) {
@@ -357,6 +364,7 @@ function admin_product_save(array $input): array
             admin_query('INSERT INTO products(id,title,category,badge,description,art,image_url,price,cost,enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),UTC_TIMESTAMP())',[$id,$title,$category,$badge,$description,$art,$imagePath,$price,$cost,(int)$enabled]);
         }
         if (categories_ready()) admin_query('UPDATE products SET category_id=? WHERE id=?',[$categoryId,$id]);
+        if ($galleryReady) admin_query('UPDATE products SET gallery_json=? WHERE id=?',[$galleryPaths ? json_value($galleryPaths) : null,$id]);
         foreach ($removed as $variant) admin_query('UPDATE product_variants SET enabled=0,updated_at=UTC_TIMESTAMP() WHERE id=?',[$variant['id']]);
         foreach ($variants as $variantId=>$variant) {
             $old = $existingVariants[$variantId] ?? null;
@@ -370,7 +378,9 @@ function admin_product_save(array $input): array
             if ($delta !== 0) admin_query('INSERT INTO stock_movements(id,product_id,variant_id,product_title,variant_name,delta,reason,user_id,user_name,created_at) VALUES(?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP())',[uid('mov'),$id,$variantId,$title,$variant['name'],$delta,$stockReason,$user['id'],$user['name']]);
         }
         audit('product.save',$id,['variantCount'=>count($variants),'enabled'=>$enabled]);
-        return ['id'=>$id];
+        return ['id'=>$id,'imageUrl'=>product_image_public_url($imagePath),
+            'galleryUrls'=>array_map('product_image_public_url',$galleryPaths),
+            'variantIds'=>array_keys($variants)];
     });
 }
 

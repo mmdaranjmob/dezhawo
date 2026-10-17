@@ -74,6 +74,39 @@
       return request('pos.customerLookup', {phone});
     });
   }
+  function uploadProductImage(file) {
+    const data = new FormData(); data.append('image', file);
+    return enqueue(async () => {
+      await ready;
+      if (!state.configured) throw new Error('ابتدا اتصال فروشگاه و دیتابیس را تکمیل کنید.');
+      // Uploading a file does not change the catalog. Return its durable URL
+      // directly, without risking a second request losing a completed upload.
+      return request('product.imageUpload', data);
+    });
+  }
+  function saveProduct(product) {
+    return enqueue(async () => {
+      await ready;
+      if (!state.configured) throw new Error('ابتدا اتصال فروشگاه و دیتابیس را تکمیل کنید.');
+      let result;
+      try { result = await request('product.save', {product}); }
+      catch (err) { try { await bootstrap(); } catch (_) {} throw err; }
+      try {
+        await bootstrap();
+        const saved = state.products.find(item => item.id === result?.id);
+        if (!saved || saved.imageUrl !== result.imageUrl || JSON.stringify(saved.galleryUrls || []) !== JSON.stringify(result.galleryUrls || [])) {
+          throw new Error('تصاویر محصول در اطلاعات تازهٔ فروشگاه تأیید نشدند.');
+        }
+        return result;
+      } catch (_) {
+        const error = new Error('محصول ثبت شد، اما دریافت و تأیید اطلاعات تازه کامل نشد. اطلاعات فرم حفظ شده است؛ دوباره ذخیره کنید یا صفحهٔ محصول را بررسی کنید.');
+        // The acknowledged ID and variant IDs make a retry update the same
+        // product, even if the follow-up bootstrap request failed.
+        error.committedProduct = result;
+        throw error;
+      }
+    });
+  }
   function getProduct(id) { return state.products.find(p => p.id === id) || null; }
   function price(product, variant) { return Number(variant?.price ?? product?.price ?? 0); }
   function categoryAvailable(product) {
@@ -111,10 +144,10 @@
     reviewTransfer:(orderId,decision,note) => mutate('transfer.review',{orderId,decision,note}),
     reportDelivery:orderId => mutate('order.deliver',{orderId}),
     adjustStock:(productId,variantId,delta,reason) => mutate('inventory.adjust',{productId,variantId,delta,reason}),
-    saveProduct:product => mutate('product.save',{product}),
+    saveProduct,
     saveCategory:category => mutate('category.save',{category}), deleteCategory:id => mutate('category.delete',{id}),
     upgradeDatabase:() => mutate('database.upgrade',{}),
-    uploadProductImage:file => { const data=new FormData();data.append('image',file);return mutate('product.imageUpload',data); },
+    uploadProductImage,
     setVariantEnabled:(productId,variantId,enabled) => mutate('variant.enabled',{productId,variantId,enabled}),
     setProductEnabled:(id,enabled) => mutate('product.enabled',{id,enabled}), deleteProduct:id => mutate('product.delete',{id}),
     saveSettings:settings => mutate('settings.save',{settings}), saveShipping:shipping => mutate('shipping.save',{shipping}),

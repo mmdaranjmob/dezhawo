@@ -55,7 +55,14 @@ async function loaded(page) {
 
 async function loadedImage(locator) {
   await locator.waitFor({state:'visible'});
-  await locator.evaluate(image => image.decode());
+  // A laid-out image can still be outside Chromium's lazy-loading threshold,
+  // especially at 320px. Exercise the same scroll a customer would perform
+  // before waiting for decode, and give a failed image a finite deadline.
+  await locator.scrollIntoViewIfNeeded();
+  await locator.evaluate(image => new Promise((resolve,reject) => {
+    const timer=setTimeout(()=>reject(new Error('Product photo did not decode within 15 seconds.')),15000);
+    image.decode().then(()=>{clearTimeout(timer);resolve();},error=>{clearTimeout(timer);reject(error);});
+  }));
   assert.equal(await locator.evaluate(image => image.complete && image.naturalWidth > 0),true);
 }
 

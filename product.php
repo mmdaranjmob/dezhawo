@@ -14,7 +14,7 @@ if (is_string($id) && preg_match('/\A[A-Za-z0-9][A-Za-z0-9_-]{0,63}\z/D', $id)) 
             $seoContext['status'] = 200;
             $seoContext['title'] = $products[0]['title'] . ' | خرید از دژاوو DEZHAWO';
             $seoContext['description'] = seo_summary($products[0]['description']) ?: seo_summary('خرید ' . $products[0]['title'] . ' از فروشگاه دژاوو؛ مشاهدهٔ قیمت، گزینه‌های موجود و سفارش آنلاین.');
-            $seoContext['products'] = array_values(array_filter(seo_public_products(), static fn(array $row): bool => $row['id'] !== $id));
+            $seoContext['products'] = seo_related_products($products[0], seo_public_products());
         }
     } catch (Throwable) {
         $seoContext['product'] = null;

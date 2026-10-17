@@ -225,3 +225,22 @@ authorization, normalized mobiles, registered customers and new numbers, counts
 across paid online/POS invoices with excluded statuses, and history beyond the
 recent-order list. Browser checks cover debounce, draft retention, stale replies,
 inline retry, clearing after a real sale, and mobile light/dark presentation.
+
+Product galleries, upload persistence and safe deletion have focused checks:
+
+```sh
+python3 tests/product_gallery.py
+node tests/product_save_client.js
+DEZHAWO_QA_SECRETS=/tmp/dezhawo-qa/secrets.json \
+DEZHAWO_QA_OUTBOX=/tmp/dezhawo-qa/outbox \
+node tests/product_gallery_browser.js
+```
+
+The gallery HTTP suite creates an isolated generated database and PHP container on
+port 8083, verifies main/eight-extra image persistence, legacy-schema fallback,
+owner-only resumable upgrades, validation, metadata/stock edits, and reserved or
+historical-product deletion. It removes its own resources afterward. The client
+suite uses stubbed HTTP responses without a database. Run the actual browser
+suite sequentially against the regular disposable QA database; it uploads real
+photos, saves/reopens product forms and public pages, checks related products and
+mobile themes, and exercises validation, upload/save failures and response loss.

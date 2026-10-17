@@ -14,6 +14,49 @@ function product_image_public_url(?string $path): ?string
     return product_image_prefix() . $path;
 }
 
+/** Metadata inspection only; legacy stores keep their existing primary photo. */
+function product_gallery_ready(): bool
+{
+    static $ready;
+    if (is_bool($ready)) return $ready;
+    return $ready = (bool)db()->query("SELECT EXISTS(SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='products' AND COLUMN_NAME='gallery_json')")->fetchColumn();
+}
+
+/** Stored image paths are never trusted as arbitrary URLs or HTML. */
+function product_gallery_stored_paths(mixed $storedJson, ?string $mainPath = null): array
+{
+    if (!is_string($storedJson)) return [];
+    $values = json_decode($storedJson, true);
+    if (!is_array($values) || !array_is_list($values)) return [];
+    $paths = [];
+    foreach ($values as $path) {
+        if (!is_string($path) || $path === $mainPath || product_image_public_url($path) === null) continue;
+        $paths[$path] = $path;
+        if (count($paths) === 8) break;
+    }
+    return array_values($paths);
+}
+
+function product_gallery_public_urls(mixed $storedJson, ?string $mainPath = null): array
+{
+    return array_map('product_image_public_url', product_gallery_stored_paths($storedJson, $mainPath));
+}
+
+/** Every supplied gallery file passes the same checks as the primary photo. */
+function product_gallery_paths(mixed $value, ?string $mainPath = null): array
+{
+    if (!is_array($value) || !array_is_list($value) || count($value) > 8) {
+        app_error('حداکثر ۸ عکس تکمیلی برای گالری محصول انتخاب کنید.');
+    }
+    $paths = [];
+    foreach ($value as $url) {
+        if (!is_string($url) || $url === '') app_error('عکس گالری محصول معتبر نیست.');
+        $path = product_image_path($url);
+        if ($path !== null && $path !== $mainPath) $paths[$path] = $path;
+    }
+    return array_values($paths);
+}
+
 function product_image_inspect(string $file): string
 {
     $size = filesize($file);

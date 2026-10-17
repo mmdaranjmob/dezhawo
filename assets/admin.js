@@ -2,7 +2,9 @@
 (function(){
   'use strict';
   let currentTab = 'overview', productDraft = null, appearanceDraft = null, posLines = [], viewTicketId = null;
-  let productImageFile = null, productImagePreview = '';
+  const productGalleryLimit=8;
+  let productPhotos={primary:null,gallery:[]},productSaving=false,productSaveControls=[];
+  let productGeneratedId='',productGeneratedVariantIds=new Set();
   let productStockBaseline = new Map();
   const blankPOSCustomer = ()=>({firstName:'',lastName:'',phone:'',address:'',payment:'card'});
   let posCustomerDraft=blankPOSCustomer(),posSubmitting=false,posCashierKey='';
@@ -11,7 +13,7 @@
   const statuses = {awaiting_payment:'در انتظار پرداخت',awaiting_review:'در انتظار بررسی واریز',paid:'پرداخت‌شده',processing:'در حال آماده‌سازی',shipped:'ارسال‌شده',completed:'تکمیل‌شده',cancelled:'لغوشده',payment_failed:'پرداخت ناموفق',payment_review:'نیازمند بررسی پرداخت'};
   const paymentLabels = {pending_review:'واریز در انتظار تأیید',unpaid:'پرداخت نشده',paid:'پرداخت تأیید شده',failed:'پرداخت ناموفق',refund_pending:'نیازمند بازپرداخت'};
   const permissionLabels = {
-    'products.view':'مشاهده محصولات','products.edit':'ایجاد و ویرایش محصول و رنگ','products.delete':'غیرفعال‌سازی محصول و رنگ',
+    'products.view':'مشاهده محصولات','products.edit':'ایجاد و ویرایش محصول و رنگ','products.delete':'حذف و غیرفعال‌سازی محصول و رنگ',
     'categories.view':'مشاهده دسته‌بندی‌ها','categories.edit':'ایجاد، ویرایش و شاخه‌بندی دسته‌ها',
     'inventory.view':'مشاهده موجودی و گردش انبار','inventory.edit':'ورود و اصلاح موجودی','pos.create':'ثبت فروش حضوری',
     'orders.view':'مشاهده سفارش‌ها','orders.edit':'مدیریت سفارش و ارسال','finance.view':'مشاهده قیمت خرید و گزارش مالی',
@@ -103,23 +105,75 @@
   }
   function productsView(){
     if(!can('products.view'))return denied();
-    const rows=allProducts().map(p=>{const stock=(p.variants||[]).filter(v=>v.enabled!==false).reduce((s,v)=>s+Number(v.stock||0),0);return `<tr><td><div class="admin-product"><div class="admin-product-art">${U().art(p)}</div><div><strong>${e(p.title)}</strong><small>${e(categoryLabel(p))}</small></div></div></td><td>${m(p.price)}</td><td><div class="admin-swatches">${(p.variants||[]).filter(v=>v.enabled!==false).map(v=>`<span class="color-dot" style="--swatch:${e(v.color)}" title="${e(v.name)} · ${n(v.stock)} عدد"></span>`).join('')}</div><small>${n((p.variants||[]).filter(v=>v.enabled!==false).length)} گزینه</small></td><td>${p.category==='digital'?'دیجیتال':n(stock)}</td><td>${p.enabled===false?pill('غیرفعال','pill-gray'):pill('فعال','pill-green')}</td><td><div class="admin-row-actions">${can('products.edit')?action('product-edit','ویرایش',`data-id="${e(p.id)}"`,'admin-link','edit'):''}${can(p.enabled===false?'products.edit':'products.delete')?action('product-toggle',p.enabled===false?'فعال‌سازی':'غیرفعال',`data-id="${e(p.id)}"`,'admin-link'):''}</div></td></tr>`;}).join('');
+    const rows=allProducts().map(p=>{const stock=(p.variants||[]).filter(v=>v.enabled!==false).reduce((s,v)=>s+Number(v.stock||0),0);return `<tr><td><div class="admin-product"><div class="admin-product-art">${U().art(p)}</div><div><strong>${e(p.title)}</strong><small>${e(categoryLabel(p))}</small></div></div></td><td>${m(p.price)}</td><td><div class="admin-swatches">${(p.variants||[]).filter(v=>v.enabled!==false).map(v=>`<span class="color-dot" style="--swatch:${e(v.color)}" title="${e(v.name)} · ${n(v.stock)} عدد"></span>`).join('')}</div><small>${n((p.variants||[]).filter(v=>v.enabled!==false).length)} گزینه</small></td><td>${p.category==='digital'?'دیجیتال':n(stock)}</td><td>${p.enabled===false?pill('غیرفعال','pill-gray'):pill('فعال','pill-green')}</td><td><div class="admin-row-actions">${can('products.edit')?action('product-edit','ویرایش',`data-id="${e(p.id)}"`,'admin-link','edit'):''}${p.enabled===false&&can('products.edit')?action('product-toggle','فعال‌سازی',`data-id="${e(p.id)}"`,'admin-link'):''}${can('products.delete')?action('product-delete','حذف محصول',`data-id="${e(p.id)}"`,'admin-link admin-danger','trash'):''}</div></td></tr>`;}).join('');
     return `<div class="admin-toolbar"><p>هر محصول یک صفحه دارد؛ رنگ‌ها و موجودی هر رنگ را همان‌جا مدیریت کنید.</p>${can('products.edit')?action('product-new','افزودن محصول','','btn btn-dark','plus'):''}</div>${card('فهرست محصولات',`<div class="table-wrap"><table class="data-table"><thead><tr><th>محصول</th><th>قیمت پایه</th><th>رنگ / مدت</th><th>موجودی کل</th><th>وضعیت</th><th>مدیریت</th></tr></thead><tbody>${rows}</tbody></table></div>`)}`;
   }
   function variantRows(variants){return variants.map((v,i)=>`<div class="admin-variant" data-variant-row="${i}"><input type="hidden" name="variantId" value="${e(v.id||'')}">${field('نام رنگ / مدت','variantName',v.name,'text','required maxlength="60"')}${field('رنگ','variantColor',v.color||'#222222','color')}${field('موجودی','variantStock',v.stock??'','number',`min="0" step="1" required ${can('inventory.edit')?'':'readonly'}`)}${field('قیمت اختصاصی (اختیاری)','variantPrice',v.price??'','number','min="0" step="1"')}${check('فعال','variantEnabled',v.enabled!==false,!can('products.delete')&&v.enabled!==false?'disabled':'')}${can('products.delete')?action('variant-remove','حذف',`data-index="${i}"`,'admin-link admin-danger','trash'):''}</div>`).join('');}
+  function releasePhoto(photo){if(photo?.preview)URL.revokeObjectURL(photo.preview);}
+  function clearProductPhotos(){releasePhoto(productPhotos.primary);productPhotos.gallery.forEach(releasePhoto);productPhotos={primary:null,gallery:[]};}
+  function closeProductEditor(){clearProductPhotos();productDraft=null;productStockBaseline=new Map();productGeneratedId='';productGeneratedVariantIds=new Set();}
+  function photoFromUrl(url){return typeof url==='string'&&url?{url,file:null,preview:''}:null;}
   function productForm(id){
-    ensure('products.edit');const p=id?getP(id):null;
-    clearProductImagePreview();productImageFile=null;
+    ensure('products.edit');if(productSaving)throw new Error('تا پایان ذخیرهٔ محصول صبر کنید.');const p=id?getP(id):null;
+    closeProductEditor();
     productStockBaseline=new Map((p?.variants||[]).map(v=>[v.id,Number(v.stock)]));
-    productDraft=p?JSON.parse(JSON.stringify(p)):{title:'',category:'case',categoryId:'case',price:'',cost:'',badge:'',description:'',imageUrl:null,enabled:true,variants:[{name:'مشکی',color:'#202020',stock:'',enabled:true}]};
+    productDraft=p?JSON.parse(JSON.stringify(p)):{title:'',category:'case',categoryId:'case',price:'',cost:'',badge:'',description:'',imageUrl:null,galleryUrls:[],enabled:true,variants:[{name:'مشکی',color:'#202020',stock:'',enabled:true}]};
+    productPhotos.primary=photoFromUrl(productDraft.imageUrl);
+    productPhotos.gallery=[...new Set(productDraft.galleryUrls||[])].filter(url=>url&&url!==productDraft.imageUrl).slice(0,productGalleryLimit).map(photoFromUrl).filter(Boolean);
+    if(!productPhotos.primary&&productPhotos.gallery.length)productPhotos.primary=productPhotos.gallery.shift();
     showProductForm();
   }
-  function clearProductImagePreview(){if(productImagePreview)URL.revokeObjectURL(productImagePreview);productImagePreview='';}
-  function productPhotoPreview(){const source=productImagePreview||productDraft?.imageUrl;return source?`<img class="product-photo" src="${e(source)}" alt="پیش‌نمایش عکس محصول">`:`<div class="admin-product-photo-empty">${ic('box')}<span>هنوز عکسی برای این محصول انتخاب نشده است.</span></div>`;}
-  function productPhotoEditor(){return `<section class="admin-span-2 admin-product-photo-editor"><div class="admin-product-photo-preview">${productPhotoPreview()}</div><div class="admin-product-photo-controls"><label class="field"><span>عکس واقعی محصول</span><input class="input" type="file" id="adminProductImage" name="productImage" accept="image/jpeg,image/png,image/webp" data-admin-change="product-image"></label><p class="admin-product-photo-note">عکس را از دستگاه انتخاب کنید؛ JPG، PNG یا WebP تا ۸ مگابایت. با ذخیرهٔ محصول بارگذاری می‌شود.</p><p class="admin-product-photo-note" data-product-photo-filename>${e(productImageFile?.name||'')}</p>${action('product-image-remove','حذف عکس','','admin-link admin-danger','trash')}</div></section>`;}
+  function photoPreview(photo,alt){const source=photo?.preview||photo?.url;return source?`<img class="product-photo" src="${e(source)}" alt="${e(alt)}">`:`<div class="admin-product-photo-empty">${ic('box')}<span>عکس اصلی محصول را انتخاب کنید.</span></div>`;}
+  function productPhotoEditor(){
+    const primary=productPhotos.primary;
+    return `<section class="admin-span-2 admin-product-photo-editor"><div class="admin-product-photo-preview">${photoPreview(primary,'پیش‌نمایش عکس اصلی محصول')}</div><div class="admin-product-photo-controls"><label class="field"><span>عکس اصلی محصول</span><input class="input" type="file" id="adminProductImage" name="productImage" accept="image/jpeg,image/png,image/webp" data-admin-change="product-image"></label><p class="admin-product-photo-note">عکس اصلی در فهرست محصولات و ویترین نمایش داده می‌شود. JPG، PNG یا WebP؛ هر عکس تا ۸ مگابایت. با ذخیرهٔ محصول بارگذاری می‌شود.</p><p class="admin-product-photo-note" data-product-photo-filename>${e(primary?.file?.name||'')}</p>${primary?action('product-image-remove','حذف عکس اصلی','','admin-link admin-danger','trash'):''}</div><div class="admin-product-gallery-editor"><div class="admin-product-gallery-heading"><h3>عکس‌های بیشتر محصول</h3><span data-product-gallery-count>${n(productPhotos.gallery.length)} از ${n(productGalleryLimit)}</span></div><label class="field"><span>افزودن چند عکس به گالری</span><input class="input" type="file" id="adminProductGallery" name="productGallery" accept="image/jpeg,image/png,image/webp" multiple data-admin-change="product-gallery" ${productPhotos.gallery.length>=productGalleryLimit?'disabled':''}></label><p class="admin-product-photo-note">علاوه بر عکس اصلی، حداکثر ۸ عکس اضافه کنید. عکس‌ها در صفحهٔ محصول نمایش داده می‌شوند و هرکدام می‌تواند عکس اصلی باشد.</p>${productPhotos.gallery.length?`<div class="admin-product-gallery">${productPhotos.gallery.map((photo,i)=>`<article class="admin-product-gallery-item" data-product-gallery-index="${i}"><div class="admin-product-gallery-preview">${photoPreview(photo,'عکس تکمیلی '+(i+1))}</div><p class="admin-product-photo-note">${e(photo.file?.name||('عکس '+n(i+1)))}</p><div class="admin-product-gallery-actions">${action('product-gallery-main','انتخاب به‌عنوان اصلی',`data-index="${i}"`,'admin-link')}${action('product-gallery-remove','حذف عکس',`data-index="${i}"`,'admin-link admin-danger','trash')}</div></article>`).join('')}</div>`:''}</div><p class="admin-span-2 admin-product-photo-status" data-product-photo-status role="status" aria-live="polite">${primary?.file||productPhotos.gallery.some(photo=>photo.file)?'عکس‌های انتخاب‌شده با ذخیرهٔ محصول بارگذاری خواهند شد.':''}</p></section>`;
+  }
+  function paintProductPhotos(){const editor=document.querySelector('[data-admin-form="product"] .admin-product-photo-editor');if(editor)editor.outerHTML=productPhotoEditor();}
+  function productPhotoStatus(message){const target=document.querySelector('[data-admin-form="product"] [data-product-photo-status]');if(target)target.textContent=message;}
+  function validatePhotoFile(file){if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('عکس JPG، PNG یا WebP انتخاب کنید.');if(file.size>8388608)throw new Error('حجم هر عکس باید حداکثر ۸ مگابایت باشد.');if(file.size===0)throw new Error('فایل عکس خالی است.');}
+  function lockProductSave(el){productSaving=true;productSaveControls=[...el.querySelectorAll('input,select,textarea,button'),...document.querySelectorAll('#modalDialog > [data-action="close-modal"]')].filter(control=>!control.disabled);productSaveControls.forEach(control=>control.disabled=true);}
+  function unlockProductSave(){productSaveControls.forEach(control=>control.disabled=false);productSaveControls=[];productSaving=false;}
+  async function uploadProductPhotos(){
+    const photos=[productPhotos.primary,...productPhotos.gallery].filter(Boolean),pending=photos.filter(photo=>photo.file);let complete=0;
+    for(const photo of pending){
+      productPhotoStatus(`در حال بارگذاری عکس ${n(++complete)} از ${n(pending.length)}…`);
+      const result=await D().uploadProductImage(photo.file);
+      if(typeof result?.imageUrl!=='string'||!result.imageUrl)throw new Error('آدرس عکس بارگذاری‌شده از سرور دریافت نشد. دوباره تلاش کنید.');
+      photo.url=result.imageUrl;photo.file=null;releasePhoto(photo);photo.preview='';
+      const index=productPhotos.gallery.indexOf(photo),preview=document.querySelector(index<0?'[data-admin-form="product"] .admin-product-photo-preview':`[data-product-gallery-index="${index}"] .admin-product-gallery-preview`);if(preview)preview.innerHTML=photoPreview(photo,index<0?'پیش‌نمایش عکس اصلی محصول':'عکس تکمیلی '+(index+1));
+    }
+    productDraft.imageUrl=productPhotos.primary?.url||null;
+    productDraft.galleryUrls=productPhotos.gallery.map(photo=>photo.url).filter(Boolean);
+    const primary=document.querySelector('[data-admin-form="product"] .admin-product-photo-preview');if(primary)primary.innerHTML=photoPreview(productPhotos.primary,'پیش‌نمایش عکس اصلی محصول');
+    productPhotoStatus('عکس‌ها آماده‌اند؛ در حال ذخیرهٔ محصول…');
+    return {imageUrl:productDraft.imageUrl,galleryUrls:[...productDraft.galleryUrls]};
+  }
+  function productIdentity(prefix){const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);return prefix+Array.from(bytes,value=>value.toString(16).padStart(2,'0')).join('');}
+  function prepareProductIdentity(product,el){
+    if(!product.id){product.id=productIdentity('prd_');productGeneratedId=product.id;}productDraft.id=product.id;el.dataset.id=product.id;
+    product.variants.forEach((variant,index)=>{if(!variant.id){variant.id=productIdentity('var_');productGeneratedVariantIds.add(variant.id);}productDraft.variants[index].id=variant.id;const hidden=el.querySelectorAll('[name="variantId"]')[index];if(hidden)hidden.value=variant.id;});
+  }
+  function rememberSavedProduct(saved){
+    if(!productDraft||!saved?.id)return;productDraft.id=saved.id;
+    const el=document.querySelector('[data-admin-form="product"]');if(el)el.dataset.id=saved.id;productGeneratedId='';
+    if(Array.isArray(saved.variantIds))saved.variantIds.forEach((id,index)=>{const variant=productDraft.variants[index];if(variant&&id){variant.id=id;productGeneratedVariantIds.delete(id);productStockBaseline.set(id,Number(variant.stock)||0);const hidden=el?.querySelectorAll('[name="variantId"]')[index];if(hidden)hidden.value=id;}});
+  }
+  function recoverProductIdentity(){
+    if(!productDraft?.id)return;const known=getP(productDraft.id);if(!known)return;
+    const ids=new Set((known.variants||[]).map(variant=>variant.id)),variants=productDraft.variants;
+    // A newly generated random ID appearing after bootstrap proves this editor's
+    // transaction committed, even if its response was lost. Keep the typed stock
+    // as its baseline so a retry cannot restore units sold in the meantime.
+    const committed=productGeneratedId===productDraft.id||variants.some(variant=>productGeneratedVariantIds.has(variant.id)&&ids.has(variant.id));
+    if(committed&&variants.every(variant=>ids.has(variant.id)))rememberSavedProduct({id:productDraft.id,variantIds:variants.map(variant=>variant.id)});
+  }
+  function productDeleteForm(id){
+    ensure('products.delete');const p=getP(id);if(!p)throw new Error('محصول پیدا نشد.');
+    form('حذف محصول',`<div class="admin-span-2 admin-product-delete-summary"><strong>${e(p.title)}</strong><p class="admin-form-note">با حذف، محصول از فروشگاه و فروش حضوری پنهان می‌شود. سوابق سفارش‌ها، موجودی و گردش انبار حفظ می‌شوند؛ در صورت نیاز می‌توانید دوباره آن را فعال کنید.</p><p class="admin-form-note">اگر این محصول در یک سفارش باز رزرو باشد، تا تعیین تکلیف آن سفارش حذف انجام نمی‌شود.</p></div>`,'product-delete',id,'حذف محصول');
+  }
   function showProductForm(){
-    const p=productDraft, cost=can('finance.view')?field('قیمت خرید (تومان)','cost',p.cost??'','number','min="0" step="1"'):'';
-    form(p.id?'ویرایش محصول':'محصول جدید',`${field('نام محصول','title',p.title,'text','required maxlength="120"')}${select('دسته‌بندی','categoryId',window.CategoryAdmin.selectOptions(p.categoryId||p.category,{includeDisabled:true}),'required')}${productPhotoEditor()}${field('قیمت پایه (تومان)','price',p.price,'number','min="0" step="1" required')}${cost}${field('نشان محصول (اختیاری)','badge',p.badge||'','text','maxlength="40"')}${check('نمایش در فروشگاه','enabled',p.enabled!==false,!can('products.delete')&&p.enabled!==false?'disabled':'')}<div class="admin-span-2">${textarea('توضیحات محصول','description',p.description||'','maxlength="1500"')}</div><div class="admin-span-2 admin-variant-header"><div><h3>رنگ‌ها یا مدت اشتراک</h3><p>هر گزینه موجودی مستقل دارد و در فروش حضوری و سایت مشترک است.</p></div>${action('variant-add','گزینه جدید','','btn btn-light','plus')}</div><div class="admin-span-2" id="adminVariants">${variantRows(p.variants||[])}</div><p class="admin-span-2 admin-form-note">غیرفعال‌کردن یک گزینه، سوابق سفارش‌های قبلی را حفظ می‌کند. تغییر تعداد موجودی با دلیل در گردش انبار ثبت می‌شود.</p>${field('دلیل تغییر موجودی','stockReason','اصلاح موجودی در ویرایش محصول','text','maxlength="180"')}`,'product',p.id||'');
+    const p=productDraft,existing=!!getP(p.id),cost=can('finance.view')?field('قیمت خرید (تومان)','cost',p.cost??'','number','min="0" step="1"'):'';
+    form(existing?'ویرایش محصول':'محصول جدید',`${field('نام محصول','title',p.title,'text','required maxlength="120"')}${select('دسته‌بندی','categoryId',window.CategoryAdmin.selectOptions(p.categoryId||p.category,{includeDisabled:true}),'required')}${productPhotoEditor()}${field('قیمت پایه (تومان)','price',p.price,'number','min="0" step="1" required')}${cost}${field('نشان محصول (اختیاری)','badge',p.badge||'','text','maxlength="40"')}${check('نمایش در فروشگاه','enabled',p.enabled!==false,!can('products.delete')&&p.enabled!==false?'disabled':'')}<div class="admin-span-2">${textarea('توضیحات کامل محصول','description',p.description||'','maxlength="6000" placeholder="ویژگی‌ها، سازگاری با مدل گوشی، مشخصات و شرایط ضمانت محصول را بنویسید."')}<p class="admin-form-note">این توضیحات در صفحهٔ محصول برای مشتری نمایش داده می‌شوند؛ حداکثر ۶۰۰۰ نویسه.</p></div><div class="admin-span-2 admin-variant-header"><div><h3>رنگ‌ها یا مدت اشتراک</h3><p>هر گزینه موجودی مستقل دارد و در فروش حضوری و سایت مشترک است.</p></div>${action('variant-add','گزینه جدید','','btn btn-light','plus')}</div><div class="admin-span-2" id="adminVariants">${variantRows(p.variants||[])}</div><p class="admin-span-2 admin-form-note">غیرفعال‌کردن یک گزینه، سوابق سفارش‌های قبلی را حفظ می‌کند. تغییر تعداد موجودی با دلیل در گردش انبار ثبت می‌شود.</p>${field('دلیل تغییر موجودی','stockReason',p.stockReason||'اصلاح موجودی در ویرایش محصول','text','maxlength="180"')}${existing&&can('products.delete')?`<div class="admin-span-2 admin-product-delete-action">${action('product-delete','حذف محصول',`data-id="${e(p.id)}"`,'admin-link admin-danger','trash')}</div>`:''}`,'product',p.id||'');
   }
   function readProduct(formEl){
     const fd=new FormData(formEl), old={...(productDraft||{})};if(!can('finance.view'))delete old.cost;
@@ -316,7 +370,13 @@
       if(a==='tab'){render(button.dataset.tab);return;}
       if(a==='product-new'){productForm();return;}
       if(a==='product-edit'){productForm(button.dataset.id);return;}
-      if(a==='product-image-remove'){ensure('products.edit');const el=button.closest('form');if(el.dataset.busy)throw new Error('تا پایان ذخیرهٔ محصول صبر کنید.');productDraft=readProduct(el);productDraft.imageUrl=null;productImageFile=null;clearProductImagePreview();showProductForm();return;}
+      if(a==='product-delete'){if(productSaving)throw new Error('تا پایان ذخیرهٔ محصول صبر کنید.');productDeleteForm(button.dataset.id);return;}
+      if(a==='product-image-remove'||a==='product-gallery-main'||a==='product-gallery-remove'){
+        ensure('products.edit');const el=button.closest('form');if(el.dataset.busy||productSaving)throw new Error('تا پایان ذخیرهٔ محصول صبر کنید.');productDraft=readProduct(el);
+        if(a==='product-image-remove'){releasePhoto(productPhotos.primary);productPhotos.primary=productPhotos.gallery.shift()||null;}
+        else{const i=Number(button.dataset.index),photo=productPhotos.gallery[i];if(!photo)return;if(a==='product-gallery-main'){const previous=productPhotos.primary;productPhotos.primary=photo;if(previous)productPhotos.gallery[i]=previous;else productPhotos.gallery.splice(i,1);}else{releasePhoto(photo);productPhotos.gallery.splice(i,1);}}
+        paintProductPhotos();return;
+      }
       if(a==='product-toggle'){const p=getP(button.dataset.id),enabling=p.enabled===false;ensure(enabling?'products.edit':'products.delete');await D().setProductEnabled(p.id,enabling);success(enabling?'محصول فعال شد.':'محصول غیرفعال شد؛ سوابق محفوظ هستند.');return;}
       if(a==='variant-add'||a==='variant-remove'){ensure('products.edit');const el=button.closest('form');if(el.dataset.busy)throw new Error('تا پایان ذخیرهٔ محصول صبر کنید.');productDraft=readProduct(el);if(a==='variant-add'){productDraft.variants.push({name:'',color:'#d7cdc0',stock:'',enabled:true});}else{ensure('products.delete');const i=Number(button.dataset.index),v=productDraft.variants[i];if(v?.id){v.enabled=false;}else productDraft.variants.splice(i,1);}showProductForm();return;}
       if(a==='stock-new'){stockForm();return;}
@@ -345,17 +405,34 @@
   document.addEventListener('change',function(event){
     const control=event.target;const posForm=control.closest('[data-admin-form="pos-sale"]');if(posForm){readPOSCustomer(posForm);if(control.name==='phone')schedulePOSHistory();}if(!control.dataset.adminChange)return;const formEl=control.closest('form');
     try{
-      if(control.dataset.adminChange==='product-image'){ensure('products.edit');if(formEl.dataset.busy)throw new Error('تا پایان ذخیرهٔ محصول صبر کنید.');const file=control.files?.[0];if(!file)return;if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('عکس JPG، PNG یا WebP انتخاب کنید.');if(file.size>8388608)throw new Error('حجم عکس باید حداکثر ۸ مگابایت باشد.');clearProductImagePreview();productImageFile=file;productImagePreview=URL.createObjectURL(file);formEl.querySelector('.admin-product-photo-preview').innerHTML=productPhotoPreview();formEl.querySelector('[data-product-photo-filename]').textContent=file.name;}
+      if(control.dataset.adminChange==='product-image'||control.dataset.adminChange==='product-gallery'){
+        ensure('products.edit');if(formEl.dataset.busy||productSaving)throw new Error('تا پایان ذخیرهٔ محصول صبر کنید.');const files=[...(control.files||[])];if(!files.length)return;files.forEach(validatePhotoFile);
+        const gallery=control.dataset.adminChange==='product-gallery',capacity=productGalleryLimit-productPhotos.gallery.length+(productPhotos.primary?0:1);
+        if(gallery&&files.length>capacity)throw new Error(`برای این محصول فقط ${n(capacity)} عکس دیگر می‌توانید اضافه کنید.`);
+        productDraft=readProduct(formEl);
+        if(!gallery){const file=files[0];releasePhoto(productPhotos.primary);productPhotos.primary={url:null,file,preview:URL.createObjectURL(file)};}
+        else for(const file of files){const photo={url:null,file,preview:URL.createObjectURL(file)};if(!productPhotos.primary)productPhotos.primary=photo;else productPhotos.gallery.push(photo);}
+        paintProductPhotos();
+      }
       if(control.dataset.adminChange==='stock-product'||control.dataset.adminChange==='pos-product'){const p=getP(control.value),isStock=control.dataset.adminChange==='stock-product';const list=formEl.querySelector('[name="variantId"]');list.innerHTML=(p?.variants||[]).filter(v=>v.enabled!==false).map(v=>`<option value="${e(v.id)}">${e(v.name)} · ${n(isStock?v.stock:D().stockAvailable(p.id,v.id))} عدد</option>`).join('');}
       if(control.dataset.adminChange==='shipping-fee'){const fee=formEl.querySelector('[name="fee"]');fee.disabled=control.value==='cod';}
       if(control.dataset.adminChange==='hero-product'){ensure('settings.edit');control.closest('.admin-hero-slot').querySelector('[data-hero-preview]').innerHTML=heroSlotPreview(control.value);}
-    }catch(err){error(err);}
+    }catch(err){if(control.type==='file')control.value='';error(err,formEl);}
   });
   document.addEventListener('submit',async function(event){
     const el=event.target;if(!el.matches('[data-admin-form]'))return;event.preventDefault();if(el.dataset.busy||(el.dataset.adminForm==='pos-sale'&&posSubmitting))return;clearFormError(el);el.dataset.busy='1';el.setAttribute('aria-busy','true');const submit=el.querySelector('[type=submit]');if(submit)submit.disabled=true;const fd=new FormData(el),name=el.dataset.adminForm,id=el.dataset.id;
     try{
       if(name==='category'||name==='category-delete'){const result=await window.CategoryAdmin.submit(el);success(result.message);return;}
-      if(name==='product'){ensure('products.edit');const p=readProduct(el);p.price=amount(p.price);if(Object.hasOwn(p,'cost'))p.cost=amount(p.cost);if(!p.title)throw new Error('نام محصول را وارد کنید.');if(!p.variants.length)throw new Error('حداقل یک رنگ یا مدت برای محصول تعریف کنید.');if(p.variants.some(v=>!v.name))throw new Error('نام تمام گزینه‌ها را وارد کنید.');p.variants=p.variants.map(v=>{v={...v,stock:amount(v.stock)};if(productStockBaseline.has(v.id)&&Number(v.stock)===productStockBaseline.get(v.id)){const value={...v};delete value.stock;return value;}return v;});if(productImageFile){const result=await D().uploadProductImage(productImageFile);p.imageUrl=result.imageUrl;productDraft.imageUrl=result.imageUrl;productImageFile=null;clearProductImagePreview();const preview=el.querySelector('.admin-product-photo-preview');if(preview)preview.innerHTML=productPhotoPreview();}await D().saveProduct(p);productDraft=null;clearProductImagePreview();success('محصول، عکس و موجودی رنگ‌ها ذخیره شد.');return;}
+      if(name==='product'){
+        ensure('products.edit');productDraft=readProduct(el);const p={...productDraft};p.price=amount(p.price);if(Object.hasOwn(p,'cost'))p.cost=amount(p.cost);
+        if(!p.title)throw new Error('نام محصول را وارد کنید.');if(!p.variants.length)throw new Error('حداقل یک رنگ یا مدت برای محصول تعریف کنید.');if(p.variants.some(v=>!v.name))throw new Error('نام تمام گزینه‌ها را وارد کنید.');
+        prepareProductIdentity(p,el);p.variants=p.variants.map(v=>{v={...v,stock:amount(v.stock)};if(productStockBaseline.has(v.id)&&Number(v.stock)===productStockBaseline.get(v.id)){const value={...v};delete value.stock;return value;}return v;});
+        lockProductSave(el);Object.assign(p,await uploadProductPhotos());
+        const saved=await D().saveProduct(p);rememberSavedProduct(saved);
+        if(saved?.imageUrl!==p.imageUrl||!Array.isArray(saved?.galleryUrls)||JSON.stringify(saved.galleryUrls)!==JSON.stringify(p.galleryUrls))throw new Error('ذخیرهٔ عکس‌های محصول تأیید نشد. فایل‌های به‌روز پروژه را روی هاست قرار دهید و دوباره ذخیره کنید.');
+        closeProductEditor();success('محصول، عکس‌ها، توضیحات و موجودی رنگ‌ها ذخیره شد.');return;
+      }
+      if(name==='product-delete'){ensure('products.delete');await D().deleteProduct(id);closeProductEditor();success('محصول از فروشگاه حذف شد؛ سوابق و موجودی حفظ شدند.');return;}
       if(name==='stock'){ensure('inventory.edit');const p=getP(fd.get('productId')),v=getV(p,fd.get('variantId'));if(!v)throw new Error('یک گزینهٔ محصول انتخاب کنید.');const quantity=amount(fd.get('quantity'));if(!Number.isInteger(quantity)||quantity<0)throw new Error('تعداد باید عدد صحیح و صفر یا بیشتر باشد.');const op=fd.get('operation'),delta=op==='count'?quantity-Number(v.stock):op==='subtract'?-quantity:quantity;const reason=String(fd.get('reason')||'').trim();if(!reason)throw new Error('دلیل تغییر موجودی را وارد کنید.');if(delta===0)throw new Error('تعداد واردشده تغییری در موجودی ایجاد نمی‌کند.');await D().adjustStock(p.id,v.id,delta,reason);success('گردش انبار ثبت شد.');return;}
       if(name==='pos-add'){ensure('pos.create');const productId=fd.get('productId'),variantId=fd.get('variantId'),quantity=amount(fd.get('quantity'));if(!Number.isInteger(quantity)||quantity<1)throw new Error('تعداد معتبر وارد کنید.');const existing=posLines.find(l=>l.productId===productId&&l.variantId===variantId);if(quantity+(existing?.quantity||0)>D().stockAvailable(productId,variantId))throw new Error('موجودی قابل فروش کافی نیست.');if(existing)existing.quantity+=quantity;else posLines.push({productId,variantId,quantity});render('pos');U().toast('محصول به فاکتور اضافه شد.');return;}
       if(name==='pos-sale'){
@@ -381,11 +458,18 @@
       if(name==='user-role'){ensure('users.edit');await D().setUserRole(id,fd.get('roleId'));success('نقش کاربر تغییر کرد.');return;}
       if(name==='shipping'){ensure('shipping.edit');const cod=fd.get('feeType')==='cod';await D().saveShipping({...(id?{id}:{}),name:String(fd.get('name')||'').trim(),description:String(fd.get('description')||'').trim(),fee:cod?0:amount(fd.get('fee')),payOnDelivery:cod,enabled:fd.has('enabled')});success('روش ارسال ذخیره شد.');return;}
       if(name==='appearance'){appearanceDraft=readAppearance(el);appearanceReview();return;}
-    }catch(err){error(err,name==='pos-sale'?(document.querySelector('[data-admin-form="pos-sale"]')||el):el);}finally{
-      delete el.dataset.busy;el.removeAttribute('aria-busy');if(submit)submit.disabled=false;
+    }catch(err){if(name==='product'){if(err.committedProduct)rememberSavedProduct(err.committedProduct);else recoverProductIdentity();productPhotoStatus(err.committedProduct?'محصول ذخیره شده است؛ دریافت نتیجه با خطا روبه‌رو شد. اطلاعات فرم حفظ شده‌اند.':'ذخیره کامل نشد؛ عکس‌ها و اطلاعات فرم حفظ شده‌اند. خطا را اصلاح کنید و دوباره ذخیره کنید.');}error(err,name==='pos-sale'?(document.querySelector('[data-admin-form="pos-sale"]')||el):el);}finally{
+      if(name==='product')unlockProductSave();delete el.dataset.busy;el.removeAttribute('aria-busy');if(submit)submit.disabled=false;
       if(name==='pos-sale'){posSubmitting=false;const live=document.querySelector('[data-admin-form="pos-sale"]');if(live){live.setAttribute('aria-busy','false');const button=live.querySelector('[type=submit]');if(button)button.disabled=posLines.length===0;}}
     }
   });
+  document.addEventListener('click',event=>{
+    if(productSaving&&event.target.closest('#modalDialog [data-action="close-modal"],#modalDialog [data-admin-action="close"]')){event.preventDefault();event.stopImmediatePropagation();}
+  },true);
+  const productDialog=document.getElementById('modalDialog'),productModalContent=document.getElementById('modalContent');
+  productDialog?.addEventListener('cancel',event=>{if(productSaving){event.preventDefault();event.stopImmediatePropagation();}},true);
+  productDialog?.addEventListener('close',()=>{if(!productSaving)closeProductEditor();});
+  if(productModalContent)new MutationObserver(()=>{if(productDraft&&!productSaving&&!productModalContent.querySelector('[data-admin-form="product"]'))closeProductEditor();}).observe(productModalContent,{childList:true});
   D().subscribe(()=>{
     const user=D().state.currentUser,key=user?user.id+'|'+user.roleId+'|'+can('pos.create'):'';
     if(key!==posCashierKey){posCashierKey=key;posLines=[];posCustomerDraft=blankPOSCustomer();resetPOSHistory();document.querySelector('[data-admin-form="pos-sale"]')?.replaceChildren();}

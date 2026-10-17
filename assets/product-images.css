@@ -30,3 +30,29 @@
  .product-modal-art .product-photo {padding:15px}
 }
 @media(prefers-reduced-motion:reduce){.product-image .product-photo {transition:none}}
+/* Product media management: one cover image and an ordered gallery. */
+.admin-product-gallery-editor {grid-column:1/-1;min-width:0;border-top:1px solid var(--line);padding-top:16px;display:grid;gap:12px}
+.admin-product-gallery-heading {display:flex;align-items:center;justify-content:space-between;gap:12px}
+.admin-product-gallery-heading h3 {font-size:13px;margin:0}
+.admin-product-gallery-heading>span {font-size:11px;color:var(--muted);white-space:nowrap}
+.admin-product-gallery-editor>.field {min-width:0}
+.admin-product-gallery-editor input[type=file] {width:100%;min-width:0;font:inherit;font-size:11px;color:var(--ink)}
+.admin-product-gallery-editor input[type=file]::file-selector-button {font:inherit;background:var(--paper);color:var(--ink);border:1px solid var(--line);padding:9px 12px;border-radius:8px;margin-left:10px;cursor:pointer}
+.admin-product-gallery {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.admin-product-gallery-item {min-width:0;padding:9px;border:1px solid var(--line);border-radius:10px;background:var(--paper)}
+.admin-product-gallery-preview {height:115px;overflow:hidden;border-radius:7px}
+.admin-product-gallery-preview .product-photo {padding:7px}
+.admin-product-gallery-item>.admin-product-photo-note {overflow-wrap:anywhere;margin-top:8px}
+.admin-product-gallery-actions {display:flex;flex-direction:column;align-items:flex-start;gap:7px;margin-top:8px}
+.admin-product-gallery-actions .admin-link {font-size:10px;line-height:1.9;text-align:right}
+.admin-product-gallery-actions .icon {width:13px;height:13px}
+.admin-product-photo-status {margin:0;color:var(--muted);font-size:11px;line-height:1.9;overflow-wrap:anywhere}
+.admin-product-photo-status:empty {display:none}
+.admin-product-delete-action {border-top:1px solid var(--line);padding-top:14px}
+.admin-product-delete-summary strong {display:block;font-size:17px;margin-bottom:14px}
+.admin-product-delete-summary .admin-form-note+.admin-form-note {margin-top:10px}
+@media(max-width:600px){
+ .admin-product-gallery {grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .admin-product-gallery-preview {height:105px}
+ .admin-product-gallery-actions .admin-link {font-size:9px}
+}
