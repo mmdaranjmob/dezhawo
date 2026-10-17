@@ -111,8 +111,13 @@ function admin_products(bool $staff = false): array
 {
     $products = [];
     $finance = can('finance.view');
-    foreach (admin_query('SELECT id,title,category,badge,description,art,image_url,price,cost,enabled FROM products' . ($staff ? '' : ' WHERE enabled=1') . ' ORDER BY created_at,id')->fetchAll(PDO::FETCH_ASSOC) as $row) {
+    $taxonomyReady = categories_ready();
+    $categoryMap = categories_map();
+    foreach (admin_query('SELECT id,title,category,' . ($taxonomyReady ? 'category_id' : 'category AS category_id') . ',badge,description,art,image_url,price,cost,enabled FROM products' . ($staff ? '' : ' WHERE enabled=1') . ' ORDER BY created_at,id')->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $categoryId = $row['category_id'] ?: $row['category'];
+        if (!$staff && !category_lineage_enabled($categoryId,$categoryMap)) continue;
         $product = ['id'=>$row['id'],'title'=>$row['title'],'category'=>$row['category'],'badge'=>$row['badge'],
+            'categoryId'=>$categoryId,
             'description'=>$row['description'],'art'=>$row['art'],'imageUrl'=>product_image_public_url($row['image_url']),'price'=>(int)$row['price'],
             'enabled'=>(bool)$row['enabled'],'variants'=>[]];
         if ($finance) $product['cost'] = (int)$row['cost'];
@@ -127,7 +132,7 @@ function admin_products(bool $staff = false): array
         $quantity = $reserved[$row['id']] ?? 0;
         $digital = $products[$row['product_id']]['category'] === 'digital';
         $available = $digital ? 99999 : max(0, (int)$row['stock'] - $quantity);
-        if (!$row['enabled'] || !$products[$row['product_id']]['enabled']) $available = 0;
+        if (!$row['enabled'] || !$products[$row['product_id']]['enabled'] || !category_lineage_enabled($products[$row['product_id']]['categoryId'],$categoryMap)) $available = 0;
         $variant = ['id'=>$row['id'],'name'=>$row['name'],'color'=>$row['color'],'stock'=>(int)$row['stock'],
             'available'=>$available,'reserved'=>$quantity,'enabled'=>(bool)$row['enabled']];
         if ($row['price'] !== null) $variant['price'] = (int)$row['price'];
@@ -225,12 +230,13 @@ function bootstrap_data(): array
     $paymentMethods = payment_methods_public();
     $paymentConfigured = count(array_filter($paymentMethods,fn(array $method): bool => $method['available'])) > 0;
     return ['configured'=>true,'products'=>admin_products($staffProducts),
+        'categories'=>categories_all(can('categories.view') || can('categories.edit') || can('products.edit')),
         'shipping'=>array_map('admin_shipping',admin_query('SELECT * FROM shipping_methods' . (can('shipping.edit') ? '' : ' WHERE enabled=1') . ' ORDER BY created_at,id')->fetchAll(PDO::FETCH_ASSOC)),
         'settings'=>admin_settings(),'paymentMethods'=>$paymentMethods,
         'paymentSettings'=>can('settings.edit',$user) ? payment_options() : null,
         'currentUser'=>$safeUser,'users'=>$users,'roles'=>$roles,
         'cart'=>$cart,'reservation'=>$reservation,'orders'=>admin_orders($user),'movements'=>$movements,'tickets'=>admin_tickets($user),
-        'permissions'=>permissions(),'capabilities'=>['smsConfigured'=>$smsConfigured,'paymentConfigured'=>$paymentConfigured,'temporaryLoginEnabled'=>temporary_login_enabled()],
+        'permissions'=>permissions(),'capabilities'=>['smsConfigured'=>$smsConfigured,'paymentConfigured'=>$paymentConfigured,'temporaryLoginEnabled'=>temporary_login_enabled(),'categoriesReady'=>categories_ready()],
         'metadata'=>['ordersLimit'=>500,'ticketsLimit'=>500,'ticketMessagesLimit'=>5000,'usersLimit'=>1000,'movementsLimit'=>1000]];
 }
 
@@ -264,8 +270,7 @@ function admin_product_save(array $input): array
     $raw = admin_object($input['product'] ?? null,'محصول');
     $id = admin_id($raw['id'] ?? '',false) ?: uid('prd');
     $title = admin_text($raw['title'] ?? '',160,'عنوان محصول',true);
-    $category = admin_text($raw['category'] ?? '',20);
-    if (!in_array($category,['case','glass','cable','charger','audio','digital'],true)) app_error('دسته‌بندی محصول معتبر نیست.');
+    [$category,$categoryId] = category_for_product($raw,null,categories_map());
     $price = int_value($raw['price'] ?? null,'قیمت');
     $badge = admin_text($raw['badge'] ?? '',50);
     $description = admin_text($raw['description'] ?? '',6000);
@@ -287,8 +292,12 @@ function admin_product_save(array $input): array
             'price'=>isset($variant['price']) && $variant['price']!=='' ? int_value($variant['price'],'قیمت رنگ') : null,
             'enabled'=>array_key_exists('enabled',$variant) ? admin_bool($variant['enabled']) : true];
     }
-    return transaction(function() use ($raw,$id,$title,$category,$price,$badge,$description,$art,$imagePath,$variants,$user,$stockReason): array {
+    return transaction(function() use ($raw,$id,$title,$price,$badge,$description,$art,$imagePath,$variants,$user,$stockReason): array {
+        // Category mutations take these locks first as well: no branch can be
+        // disabled/deleted or change product type during product assignment.
+        $categoryMap = categories_map(categories_ready());
         $existing = admin_one('SELECT * FROM products WHERE id=? FOR UPDATE',[$id]);
+        [$category,$categoryId] = category_for_product($raw,$existing,$categoryMap);
         $imagePath = array_key_exists('imageUrl', $raw) ? $imagePath : ($existing['image_url'] ?? null);
         $existingVariants = $existing ? admin_variant_locks($id) : [];
         $enabled = array_key_exists('enabled',$raw) ? admin_bool($raw['enabled']) : (bool)($existing['enabled'] ?? 1);
@@ -304,8 +313,10 @@ function admin_product_save(array $input): array
         }
         if ($existing && $existing['category'] !== $category) {
             admin_assert_not_reserved($existingVariants);
-            foreach ($existingVariants as $variant) {
-                if ((int)$variant['stock'] !== 0) app_error('برای تغییر دسته‌بندی، ابتدا موجودی رنگ‌ها را صفر کنید.',409);
+            if (!array_key_exists('categoryId',$raw) || (($existing['category'] === 'digital') !== ($category === 'digital'))) {
+                foreach ($existingVariants as $variant) {
+                    if ((int)$variant['stock'] !== 0) app_error('برای تغییر نوع دسته‌بندی، ابتدا موجودی رنگ‌ها را صفر کنید.',409);
+                }
             }
         }
         $removed = array_diff_key($existingVariants,$variants);
@@ -327,6 +338,7 @@ function admin_product_save(array $input): array
         } else {
             admin_query('INSERT INTO products(id,title,category,badge,description,art,image_url,price,cost,enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),UTC_TIMESTAMP())',[$id,$title,$category,$badge,$description,$art,$imagePath,$price,$cost,(int)$enabled]);
         }
+        if (categories_ready()) admin_query('UPDATE products SET category_id=? WHERE id=?',[$categoryId,$id]);
         foreach ($removed as $variant) admin_query('UPDATE product_variants SET enabled=0,updated_at=UTC_TIMESTAMP() WHERE id=?',[$variant['id']]);
         foreach ($variants as $variantId=>$variant) {
             $old = $existingVariants[$variantId] ?? null;
@@ -443,6 +455,7 @@ function admin_settings_save(array $input): array
             $ids = $changes['heroProductIds'];
             $visible = admin_query('SELECT p.id FROM products p WHERE p.id IN (' . implode(',',array_fill(0,count($ids),'?')) . ') AND p.enabled=1 AND EXISTS(SELECT 1 FROM product_variants v WHERE v.product_id=p.id AND v.enabled=1) ORDER BY p.id FOR UPDATE',$ids)->fetchAll(PDO::FETCH_COLUMN);
             if (count($visible) !== count($ids)) app_error('محصول ویترین باید فعال و دارای حداقل یک رنگ یا گزینهٔ فعال باشد؛ انتخاب‌های غیرفعال یا حذف‌شده را جایگزین کنید.');
+            foreach ($ids as $id) if (!category_product_is_public($id)) app_error('دسته‌بندی محصول ویترین یا یکی از شاخه‌های بالاتر غیرفعال است؛ محصول دیگری انتخاب کنید.');
         }
         $settings = array_replace(admin_settings(),$changes);
         if ($settings['enamadEnabled'] && $settings['enamadUrl'] === '') app_error('برای نمایش اینماد لینک رسمی را وارد کنید.');
@@ -694,6 +707,7 @@ function admin_ticket_status(array $input): array
 function admin_action(string $action, array $input): mixed
 {
     return match($action) {
+        'category.save'=>admin_category_save($input), 'category.delete'=>admin_category_delete($input),
         'product.save'=>admin_product_save($input), 'product.enabled'=>admin_product_enabled($input),
         'product.delete'=>admin_product_enabled($input,true), 'variant.enabled'=>admin_variant_enabled($input),
         'settings.save'=>admin_settings_save($input), 'payments.settings'=>payment_settings_save($input),

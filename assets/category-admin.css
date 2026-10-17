@@ -1,0 +1,21 @@
+/* Product branches use the shared administration and theme surfaces. */
+.admin-category-tree,.admin-category-children {list-style:none;padding:0;margin:0}
+.admin-category-tree {margin-top:20px}
+.admin-category-node {min-width:0}
+.admin-category-row {display:flex;align-items:center;justify-content:space-between;gap:18px;padding:19px 0;border-bottom:1px solid var(--theme-line,#deded5)}
+.admin-category-title {display:flex;align-items:center;gap:13px;min-width:0}
+.admin-category-title>.icon {width:21px;height:21px;flex:none;color:var(--theme-muted,#6e7165)}
+.admin-category-title strong {display:block;font-size:14px;font-weight:650;overflow-wrap:anywhere;line-height:1.8}
+.admin-category-title small {display:block;margin-top:5px;font-size:11px;line-height:1.9;color:var(--theme-muted,#6e7165)}
+.admin-category-controls {display:flex;align-items:center;flex-wrap:wrap;gap:20px;flex:none;min-width:0}
+.admin-category-controls>.pill {white-space:nowrap}
+.admin-category-actions {display:flex;align-items:center;flex-wrap:wrap;gap:16px}
+.admin-category-actions .admin-link {display:inline-flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;min-height:32px}
+.admin-category-actions .icon {width:14px;height:14px}
+.admin-category-children {padding-inline-start:24px;margin-inline-start:9px;border-inline-start:1px dashed var(--theme-line,#deded5)}
+.admin-category-children .admin-category-row {position:relative}
+.admin-category-children .admin-category-row:before {content:'';position:absolute;inset-inline-start:-24px;top:50%;width:13px;border-top:1px dashed var(--theme-line,#deded5)}
+.admin-category-delete-path {padding:15px 17px;border-radius:12px;background:var(--theme-raised,#f1f0e9);font-size:14px;line-height:1.9;overflow-wrap:anywhere}
+.admin-category-actions .admin-link:focus-visible {outline:2px solid #5495ef;outline-offset:3px;border-radius:5px}
+@media(max-width:850px){.admin-category-row{flex-wrap:wrap;gap:12px}.admin-category-title{flex:1 1 200px}.admin-category-controls{flex:1 1 100%;justify-content:space-between;gap:12px}.admin-category-actions{gap:15px}.admin-category-children{padding-inline-start:18px;margin-inline-start:5px}.admin-category-children .admin-category-row:before{inset-inline-start:-18px;width:10px}}
+@media(max-width:450px){.admin-category-actions{gap:10px}.admin-category-actions .admin-link{font-size:11px}.admin-category-actions .icon{width:13px;height:13px}.admin-category-controls>.pill{font-size:10px;padding:4px 7px}.admin-category-children{padding-inline-start:12px;margin-inline-start:3px}.admin-category-children .admin-category-row:before{inset-inline-start:-12px;width:7px}.admin-category-title{gap:8px}.admin-category-title strong{font-size:13px}.admin-category-tree{margin-top:10px}}

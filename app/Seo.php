@@ -4,6 +4,7 @@ declare(strict_types=1);
 /** Public, server-rendered catalog data. Never loads accounts or merchant secrets. */
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/ProductImages.php';
+require_once __DIR__ . '/Categories.php';
 
 function seo_escape(mixed $value): string
 {
@@ -33,6 +34,28 @@ function seo_category(string $category): string
         'audio'=>'هندزفری', 'digital'=>'اشتراک دیجیتال'][$category] ?? 'لوازم جانبی موبایل';
 }
 
+function seo_product_category(array $product): string
+{
+    $path = $product['categoryPath'] ?? [];
+    return $path ? implode(' / ', array_column($path, 'name')) : seo_category((string)$product['category']);
+}
+
+/** Names and navigation follow the current public hierarchy, including renamed parents. */
+function seo_category_path(string $id, array $categories): array
+{
+    $path = [];
+    $seen = [];
+    while (isset($categories[$id])) {
+        if (isset($seen[$id])) return [];
+        $seen[$id] = true;
+        $category = $categories[$id];
+        array_unshift($path, ['id'=>(string)$category['id'], 'name'=>(string)$category['name']]);
+        if (empty($category['parentId'])) return $path;
+        $id = (string)$category['parentId'];
+    }
+    return [];
+}
+
 function seo_summary(string $text, int $length = 155): string
 {
     $text = trim(preg_replace('/\s+/u', ' ', strip_tags($text)) ?? '');
@@ -46,13 +69,24 @@ function seo_number(int $value): string
 
 function seo_public_products(?string $id = null): array
 {
-    $sql = 'SELECT p.id,p.title,p.category,p.badge,p.description,p.image_url,p.price,p.updated_at FROM products p WHERE p.enabled=1'
+    $categoryMap = [];
+    $legacyMap = [];
+    foreach (categories_all() as $category) {
+        $categoryMap[(string)$category['id']] = $category;
+        if (!empty($category['legacyKey'])) $legacyMap[(string)$category['legacyKey']] = (string)$category['id'];
+    }
+    $categoryColumn = categories_ready() ? 'p.category_id' : 'p.category';
+    $sql = 'SELECT p.id,p.title,p.category,' . $categoryColumn . ' AS category_id,p.badge,p.description,p.image_url,p.price,p.updated_at FROM products p WHERE p.enabled=1'
         . ($id === null ? '' : ' AND p.id=?')
         . ' AND EXISTS (SELECT 1 FROM product_variants v WHERE v.product_id=p.id AND v.enabled=1) ORDER BY p.created_at,p.id';
     $query = db()->prepare($sql);
     $query->execute($id === null ? [] : [$id]);
     $products = [];
     foreach ($query->fetchAll() as $row) {
+        // A disabled parent hides its entire branch, also in HTML, JSON-LD and the sitemap.
+        $row['categoryId'] = (string)($row['category_id'] ?? $legacyMap[(string)$row['category']] ?? '');
+        $row['categoryPath'] = seo_category_path($row['categoryId'], $categoryMap);
+        if (!$row['categoryPath']) continue;
         $row['variants'] = [];
         $row['price'] = (int)$row['price'];
         $row['image'] = null;
@@ -99,7 +133,7 @@ function seo_product_schema(array $product): array
     $url = seo_product_url((string)$product['id']);
     $schema = ['@context'=>'https://schema.org', '@type'=>'Product', '@id'=>$url . '#product',
         'name'=>$product['title'], 'url'=>$url, 'description'=>seo_summary($product['description'], 500),
-        'category'=>seo_category($product['category']), 'sku'=>(string)$product['id']];
+        'category'=>seo_product_category($product), 'sku'=>(string)$product['id']];
     if ($product['image']) $schema['image'] = [$product['image']];
     $schema['offers'] = array_map(static fn(array $variant): array => [
         '@type'=>'Offer', 'url'=>$url, 'sku'=>(string)$variant['id'], 'name'=>$product['title'] . ' — ' . $variant['name'],
@@ -163,7 +197,7 @@ function seo_catalog_cards(array $products): void
         } else {
             echo '<span class="product-photo-placeholder">بدون تصویر</span>';
         }
-        echo '</a></div><div class="product-details"><p class="product-category">' . seo_escape(seo_category($product['category'])) . '</p>';
+        echo '</a></div><div class="product-details"><p class="product-category">' . seo_escape(seo_product_category($product)) . '</p>';
         echo '<a class="product-title" href="' . seo_escape($url) . '">' . seo_escape($product['title']) . '</a>';
         echo '<div class="product-bottom"><span class="product-price">' . seo_number($product['lowPrice']) . ' <span class="currency">تومان</span></span><span class="small muted">' . ($product['available'] ? 'موجود' : 'ناموجود') . '</span></div></div></article>';
     }
@@ -177,13 +211,16 @@ function seo_product_detail(array $context): void
         echo '</nav><div class="product-page-error"><h1 id="productPageTitle">' . seo_escape($context['status'] === 404 ? 'محصول پیدا نشد.' : 'فروشگاه موقتاً در دسترس نیست.') . '</h1><p>' . ($context['status'] === 404 ? 'این محصول حذف شده یا هنوز برای فروش منتشر نشده است.' : 'لطفاً کمی بعد دوباره تلاش کنید.') . '</p><a class="btn btn-dark" href="index.php">بازگشت به فروشگاه</a></div></section>';
         return;
     }
+    foreach ($product['categoryPath'] ?? [] as $category) {
+        echo '<span aria-hidden="true">/</span><a href="index.php?category=' . rawurlencode((string)$category['id']) . '#catalog">' . seo_escape($category['name']) . '</a>';
+    }
     echo '<span aria-hidden="true">/</span><span aria-current="page">' . seo_escape($product['title']) . '</span></nav><div class="product-page-grid"><div class="product-page-photo">';
     if ($product['image']) {
         echo '<img class="product-photo" src="' . seo_escape($product['image']) . '" alt="' . seo_escape($product['title']) . '" width="800" height="800" fetchpriority="high" decoding="async">';
     } else {
         echo '<span class="product-photo-placeholder">تصویر محصول ثبت نشده است.</span>';
     }
-    echo '</div><div class="product-page-copy"><p class="eyebrow">' . seo_escape(seo_category($product['category'])) . '</p><h1 id="productPageTitle">' . seo_escape($product['title']) . '</h1><p class="product-page-description">' . nl2br(seo_escape($product['description'])) . '</p><div class="product-page-price">از ' . seo_number($product['lowPrice']) . ' <span class="currency">تومان</span></div>';
+    echo '</div><div class="product-page-copy"><p class="eyebrow">' . seo_escape(seo_product_category($product)) . '</p><h1 id="productPageTitle">' . seo_escape($product['title']) . '</h1><p class="product-page-description">' . nl2br(seo_escape($product['description'])) . '</p><div class="product-page-price">از ' . seo_number($product['lowPrice']) . ' <span class="currency">تومان</span></div>';
     echo '<p class="stock-note">' . ($product['available'] ? 'موجود و قابل سفارش' : 'در حال حاضر ناموجود') . '</p><div class="product-page-variants"><h2>' . ($product['category'] === 'digital' ? 'مدت اشتراک و قیمت' : 'رنگ‌ها و قیمت') . '</h2><ul>';
     foreach ($product['variants'] as $variant) {
         echo '<li><span>' . seo_escape($variant['name']) . '</span><strong>' . seo_number($variant['price']) . ' تومان</strong><span>' . ($variant['available'] > 0 ? 'موجود' : 'ناموجود') . '</span></li>';

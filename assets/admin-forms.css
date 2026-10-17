@@ -1,0 +1,8 @@
+.admin-form-error{color:#9b3022;background:#fff0eb;border:1px solid #e9b6a9;border-radius:10px;padding:12px 15px;font-size:12px;line-height:1.9;margin:0 0 18px;overflow-wrap:anywhere}
+.admin-form-error[hidden]{display:none}
+[data-admin-form] [aria-invalid=true]{border-color:#bb4834;outline-color:#bb4834}
+[data-money-input]{text-align:left;unicode-bidi:plaintext;font-variant-numeric:tabular-nums}
+[data-money-input]::placeholder{direction:rtl;text-align:right}
+[data-admin-form][aria-busy=true] button[type=submit]{cursor:wait}
+html[data-theme=dark] .admin-form-error{color:#ffd1c5;background:#38241f;border-color:#855044}
+html[data-theme=dark] [data-admin-form] [aria-invalid=true]{border-color:#ffad97;outline-color:#ffad97}

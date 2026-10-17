@@ -1,9 +1,9 @@
 /* Same-origin PHP client. All inventory, accounts and orders are authoritative on the server. */
 (() => {
   'use strict';
-  const knownPermissions = ['products.view','products.edit','products.delete','inventory.view','inventory.edit','pos.create','orders.view','orders.edit','finance.view','tickets.view','tickets.reply','shipping.edit','users.edit','roles.edit','appearance.edit','enamad.edit','settings.edit'];
+  const knownPermissions = ['products.view','products.edit','products.delete','categories.view','categories.edit','inventory.view','inventory.edit','pos.create','orders.view','orders.edit','finance.view','tickets.view','tickets.reply','shipping.edit','users.edit','roles.edit','appearance.edit','enamad.edit','settings.edit'];
   const defaults = {
-    configured: false, loading: true, products: [], shipping: [], currentUser: null,
+    configured: false, loading: true, products: [], categories: null, shipping: [], currentUser: null,
     users: [], roles: [], cart: [], reservation: null, orders: [], movements: [], tickets: [], paymentMethods: [], paymentSettings: null,
     capabilities: {smsConfigured: false, paymentConfigured: false, temporaryLoginEnabled: false},
     settings: {brand:'DEZHAWO', tagline:'دژاوو؛ انتخابی که می‌ماند.', footerText:'دژاوو؛ لوازم جانبی برای هر روز، انتخابی برای ماندن.'}
@@ -65,9 +65,17 @@
   }
   function getProduct(id) { return state.products.find(p => p.id === id) || null; }
   function price(product, variant) { return Number(variant?.price ?? product?.price ?? 0); }
+  function categoryAvailable(product) {
+    if (!Array.isArray(state.categories)) return true;
+    const map=new Map(state.categories.map(category=>[category.id,category]));
+    const seen=new Set();let category=map.get(product.categoryId||product.category);
+    if(!category)return false;
+    while(category){if(category.enabled===false||seen.has(category.id))return false;seen.add(category.id);if(!category.parentId)return true;category=map.get(category.parentId);}
+    return false;
+  }
   function stockAvailable(productId, variantId) {
     const p = getProduct(productId), v = p?.variants.find(x => x.id === variantId);
-    if (!p || !v || p.enabled === false || v.enabled === false) return 0;
+    if (!p || !v || p.enabled === false || v.enabled === false || !categoryAvailable(p)) return 0;
     return p.category === 'digital' ? 99999 : Math.max(0, Number(v.available ?? 0));
   }
   function cartLines() {
@@ -79,7 +87,7 @@
   const DZ = {
     ready, refresh:() => enqueue(bootstrap), permissions:knownPermissions,
     products:() => state.products, getProduct, price, stockAvailable, cartLines,
-    cartIssues:() => state.cart.filter(line => { const product=getProduct(line.productId),variant=product?.variants.find(v=>v.id===line.variantId);return !product||!variant||product.enabled===false||variant.enabled===false;}),
+    cartIssues:() => state.cart.filter(line => { const product=getProduct(line.productId),variant=product?.variants.find(v=>v.id===line.variantId);return !product||!variant||product.enabled===false||variant.enabled===false||!categoryAvailable(product);}),
     cartCount:() => state.cart.reduce((sum,line) => sum + Number(line.quantity),0),
     cartTotal:() => cartLines().reduce((sum,line) => sum + line.quantity * line.unitPrice,0),
     can:permission => Boolean(state.currentUser?.permissions?.includes(permission)),
@@ -93,6 +101,7 @@
     reportDelivery:orderId => mutate('order.deliver',{orderId}),
     adjustStock:(productId,variantId,delta,reason) => mutate('inventory.adjust',{productId,variantId,delta,reason}),
     saveProduct:product => mutate('product.save',{product}),
+    saveCategory:category => mutate('category.save',{category}), deleteCategory:id => mutate('category.delete',{id}),
     uploadProductImage:file => { const data=new FormData();data.append('image',file);return mutate('product.imageUpload',data); },
     setVariantEnabled:(productId,variantId,enabled) => mutate('variant.enabled',{productId,variantId,enabled}),
     setProductEnabled:(id,enabled) => mutate('product.enabled',{id,enabled}), deleteProduct:id => mutate('product.delete',{id}),

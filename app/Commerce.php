@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/Categories.php';
 
 /** Authoritative commerce operations. All monetary values are integer tomans. */
 function commerce_id(mixed $value, string $label = 'شناسه'): string
@@ -108,7 +109,7 @@ function commerce_assert_cart_editable(string $key): void
 
 function commerce_check_line(array $variant, string $productId, int $quantity, ?string $excludeReservation = null): array
 {
-    if ($variant['product_id'] !== $productId || !(int) $variant['enabled'] || !(int) $variant['product_enabled']) {
+    if ($variant['product_id'] !== $productId || !(int) $variant['enabled'] || !(int) $variant['product_enabled'] || !category_product_is_public($productId)) {
         app_error('محصول یا گزینهٔ انتخاب‌شده قابل فروش نیست.');
     }
     if ($variant['category'] !== 'digital' && (int) $variant['stock'] - commerce_reserved($variant['id'], $excludeReservation) < $quantity) {

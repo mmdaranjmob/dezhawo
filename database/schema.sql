@@ -34,10 +34,27 @@ CREATE TABLE users (
   CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE categories (
+  id VARCHAR(64) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  parent_id VARCHAR(64) NULL,
+  product_type VARCHAR(20) NOT NULL DEFAULT 'physical',
+  legacy_key VARCHAR(20) NULL,
+  enabled TINYINT(1) NOT NULL DEFAULT 1,
+  sort_order INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_categories_legacy (legacy_key),
+  KEY idx_categories_parent_order (parent_id, sort_order),
+  CONSTRAINT fk_categories_parent FOREIGN KEY (parent_id) REFERENCES categories (id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE products (
   id VARCHAR(64) NOT NULL,
   title VARCHAR(160) NOT NULL,
   category VARCHAR(20) NOT NULL,
+  category_id VARCHAR(64) NULL,
   badge VARCHAR(50) NOT NULL DEFAULT '',
   description TEXT NOT NULL,
   art VARCHAR(20) NOT NULL DEFAULT 'case',
@@ -48,7 +65,9 @@ CREATE TABLE products (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  KEY idx_products_enabled_category (enabled, category)
+  KEY idx_products_enabled_category (enabled, category),
+  KEY idx_products_category_id (category_id),
+  CONSTRAINT fk_products_category FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE product_variants (
@@ -293,6 +312,7 @@ INSERT INTO roles (id, name, protected) VALUES
 
 INSERT INTO role_permissions (role_id, permission) VALUES
 ('owner', 'products.view'), ('owner', 'products.edit'), ('owner', 'products.delete'),
+('owner', 'categories.view'), ('owner', 'categories.edit'),
 ('owner', 'inventory.view'), ('owner', 'inventory.edit'), ('owner', 'pos.create'),
 ('owner', 'orders.view'), ('owner', 'orders.edit'), ('owner', 'finance.view'),
 ('owner', 'tickets.view'), ('owner', 'tickets.reply'), ('owner', 'shipping.edit'),
@@ -301,12 +321,21 @@ INSERT INTO role_permissions (role_id, permission) VALUES
 ('cashier', 'products.view'), ('cashier', 'inventory.view'), ('cashier', 'pos.create'), ('cashier', 'orders.view'),
 ('support', 'orders.view'), ('support', 'tickets.view'), ('support', 'tickets.reply');
 
+INSERT INTO categories (id,name,parent_id,product_type,legacy_key,enabled,sort_order) VALUES
+('case','قاب',NULL,'physical','case',1,0),
+('glass','گلس',NULL,'physical','glass',1,1),
+('cable','کابل',NULL,'physical','cable',1,2),
+('charger','شارژر',NULL,'physical','charger',1,3),
+('audio','هندزفری',NULL,'physical','audio',1,4),
+('digital','اشتراک دیجیتال',NULL,'digital','digital',1,5);
+
 -- Placeholder rates must be reviewed against actual store agreements before launch.
 INSERT INTO shipping_methods (id, name, description, fee, pay_on_delivery, enabled) VALUES
 ('tipax', 'تیپاکس', 'روش ارسال پیشنهادی؛ هزینه و زمان تحویل را پیش از فروش تنظیم کنید.', 0, 1, 0),
 ('chapar', 'چاپار', 'روش ارسال پیشنهادی؛ هزینه و زمان تحویل را پیش از فروش تنظیم کنید.', 0, 1, 0);
 
 INSERT INTO settings (name, value) VALUES
+('categories_initialized', 'true'),
 ('brand', '"DEZHAWO"'),
 ('tagline', '"دژاوو؛ انتخابی که می‌ماند."'),
 ('notice', '"انتخاب‌های کوچک، برای روزهای بهتر"'),

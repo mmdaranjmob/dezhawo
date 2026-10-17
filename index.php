@@ -29,6 +29,9 @@ header('Referrer-Policy: same-origin');
 <link rel="stylesheet" href="assets/product-images.css">
 <link rel="stylesheet" href="assets/hero-products.css">
 <link rel="stylesheet" href="assets/product-page.css">
+<link rel="stylesheet" href="assets/categories.css">
+<link rel="stylesheet" href="assets/category-admin.css">
+<link rel="stylesheet" href="assets/admin-forms.css">
 </head>
 <body<?= $seoContext['productPage'] ? ' class="is-product-page" data-product-page="' . seo_escape((string)($seoContext['product']['id'] ?? '')) . '"' : '' ?>>
 <div class="runtime-status" id="runtimeStatus" role="status">در حال دریافت اطلاعات فروشگاه…</div>
@@ -62,6 +65,7 @@ header('Referrer-Policy: same-origin');
 
 
 <script src="assets/api.js" defer></script>
+<script src="assets/category-admin.js" defer></script>
 <script src="assets/admin.js" defer></script>
 <script src="assets/store.js" defer></script>
 </body>

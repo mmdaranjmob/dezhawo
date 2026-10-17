@@ -154,3 +154,24 @@ navigation to a product page and unchanged inventory. SEO checks use real HTTP
 responses with JavaScript disabled: public catalog/product content, safe metadata
 and JSON-LD, toman-to-IRR conversion, stock/reservations, inactive404 responses,
 outage503 responses, sitemap, robots and subdirectory installation.
+
+Hierarchical categories and administrator form behavior have focused checks:
+
+```sh
+python3 tests/categories.py --private-dir /tmp/dezhawo-qa
+DEZHAWO_QA_SECRETS=/tmp/dezhawo-qa/secrets.json \
+DEZHAWO_QA_OUTBOX=/tmp/dezhawo-qa/outbox \
+NODE_PATH=/tmp/dezhawo-browser/node_modules node tests/admin_forms_browser.js
+```
+
+Apply `database/upgrade-20261016-categories.sql` to an older disposable QA database
+first. Category checks cover parent/descendant operations, cycles, occupied-branch
+deletion, physical/digital boundaries, permissions, hidden branches in public
+catalog/SEO and unchanged stock, migration reapplication and a fresh temporary
+schema. Browser checks use actual disposable database fixtures and the owner OTP
+flow to verify category management and customer navigation, mobile/dark layouts,
+price grouping and numeric payloads, blank new-product inputs, retained existing
+zero values, modal dismissal after success and one submission while a save is
+pending. One intercepted failed save verifies visible inline errors without
+discarding entered values. Run both suites sequentially with other database QA;
+their synthetic products and categories are removed in `finally`.

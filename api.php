@@ -5,6 +5,7 @@ require_once __DIR__ . '/app/Auth.php';
 require_once __DIR__ . '/app/TemporaryLogin.php';
 require_once __DIR__ . '/app/Sms.php';
 require_once __DIR__ . '/app/PaymentMethods.php';
+require_once __DIR__ . '/app/Categories.php';
 require_once __DIR__ . '/app/Commerce.php';
 require_once __DIR__ . '/app/Payments.php';
 require_once __DIR__ . '/app/Digipay.php';
@@ -29,7 +30,7 @@ try {
         'auth.requestOtp', 'auth.verifyOtp', 'auth.temporaryLogin', 'auth.logout',
         'cart.add', 'cart.set', 'reservation.create', 'reservation.release', 'order.checkout', 'order.resume',
         'pos.sale', 'inventory.adjust', 'order.status', 'order.tracking',
-        'product.save', 'product.imageUpload', 'product.enabled', 'variant.enabled', 'product.delete', 'settings.save',
+        'product.save', 'product.imageUpload', 'product.enabled', 'variant.enabled', 'product.delete', 'category.save', 'category.delete', 'settings.save',
         'payments.settings', 'transfer.submit', 'transfer.review', 'order.deliver',
         'shipping.save', 'shipping.disable', 'role.save', 'role.delete',
         'user.role', 'user.enabled', 'user.create',

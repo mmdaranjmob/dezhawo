@@ -85,7 +85,7 @@ function db(): PDO
 
 function permissions(): array
 {
-    return ['products.view', 'products.edit', 'products.delete', 'inventory.view', 'inventory.edit',
+    return ['products.view', 'products.edit', 'products.delete', 'categories.view', 'categories.edit', 'inventory.view', 'inventory.edit',
         'pos.create', 'orders.view', 'orders.edit', 'finance.view', 'tickets.view', 'tickets.reply',
         'shipping.edit', 'users.edit', 'roles.edit', 'appearance.edit', 'enamad.edit', 'settings.edit'];
 }

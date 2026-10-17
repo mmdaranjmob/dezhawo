@@ -273,7 +273,7 @@ function payment_finalize_verified(string $orderId, string $attemptId, string $r
         $shortage = false;
         foreach ($lines as $line) {
             $variant = $variants[$line['variant_id']];
-            if (!(int) $variant['enabled'] || !(int) $variant['product_enabled'] || $variant['category'] !== $line['category'] || ($line['category'] !== 'digital' && (int) $variant['stock'] - commerce_reserved($line['variant_id'], $locked['reservation_id']) < (int) $line['quantity'])) {
+            if (!(int) $variant['enabled'] || !(int) $variant['product_enabled'] || !category_product_is_public((string)$line['product_id']) || $variant['category'] !== $line['category'] || ($line['category'] !== 'digital' && (int) $variant['stock'] - commerce_reserved($line['variant_id'], $locked['reservation_id']) < (int) $line['quantity'])) {
                 $shortage = true;
                 break;
             }
