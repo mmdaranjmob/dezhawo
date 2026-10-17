@@ -175,3 +175,21 @@ zero values, modal dismissal after success and one submission while a save is
 pending. One intercepted failed save verifies visible inline errors without
 discarding entered values. Run both suites sequentially with other database QA;
 their synthetic products and categories are removed in `finally`.
+
+In-site database upgrades have an isolated legacy-schema suite and synthetic
+browser checks:
+
+```sh
+python3 tests/database_upgrades.py
+node tests/database_upgrades_browser.js
+```
+
+The database suite uses the existing local QA MariaDB container, network and
+PHP image to create a separate disposable database, restricted user, private
+configuration/outbox and HTTP container on port 8082. It removes those resources
+afterward and does not change the normal QA database or configuration. Checks
+cover read-only detection, owner/CSRF/HTTPS restrictions, interrupted DDL and
+resumability, preserved catalog/orders/reservations/settings, repeat upgrades,
+deleted-root preservation and concurrent requests. The browser suite intercepts
+all API replies and verifies the owner-only top banner, one-click busy state,
+inline errors/retry, verified completion and mobile light/dark readability.

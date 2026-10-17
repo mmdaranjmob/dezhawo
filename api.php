@@ -12,6 +12,7 @@ require_once __DIR__ . '/app/Digipay.php';
 require_once __DIR__ . '/app/ManualPayments.php';
 require_once __DIR__ . '/app/ProductImages.php';
 require_once __DIR__ . '/app/Admin.php';
+require_once __DIR__ . '/app/DatabaseUpgrades.php';
 
 $action = is_string($_GET['action'] ?? null) ? $_GET['action'] : '';
 try {
@@ -28,6 +29,7 @@ try {
     }
     $allowed = [
         'auth.requestOtp', 'auth.verifyOtp', 'auth.temporaryLogin', 'auth.logout',
+        'database.upgrade',
         'cart.add', 'cart.set', 'reservation.create', 'reservation.release', 'order.checkout', 'order.resume',
         'pos.sale', 'inventory.adjust', 'order.status', 'order.tracking',
         'product.save', 'product.imageUpload', 'product.enabled', 'variant.enabled', 'product.delete', 'category.save', 'category.delete', 'settings.save',
@@ -44,17 +46,23 @@ try {
     if ($action === 'auth.temporaryLogin') {
         respond(auth_temporary_login(body()));
     }
+    if ($action === 'database.upgrade') {
+        respond(database_upgrade_apply(body()));
+    }
     $owner = db()->query("SELECT id FROM users WHERE role_id='owner' LIMIT 1")->fetch();
     if (!$owner) {
         app_error('ابتدا مدیر فروشگاه را از نصب‌کننده ایجاد کنید.', 503);
+    }
+    if (str_starts_with($action, 'auth.')) {
+        respond(auth_action($action, body()));
+    }
+    if (database_upgrade_status()['recovery']) {
+        app_error('فروشگاه برای ادامه به ارتقای دیتابیس نیاز دارد. مدیر اصلی پس از ورود، دکمهٔ «ارتقای دیتابیس» بالای سایت را بزند.',503);
     }
     if ($action === 'product.imageUpload') {
         respond(product_image_upload());
     }
     $input = body();
-    if (str_starts_with($action, 'auth.')) {
-        respond(auth_action($action, $input));
-    }
     if (str_starts_with($action, 'transfer.')) {
         respond(manual_payment_action($action, $input));
     }

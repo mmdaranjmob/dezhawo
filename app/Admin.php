@@ -199,6 +199,22 @@ function bootstrap_data(): array
     $user = current_user();
     $safeUser = $user ? admin_user($user) : null;
     if ($safeUser) $safeUser['permissions'] = array_values(array_filter(permissions(),fn(string $permission): bool => can($permission,$user)));
+    $databaseUpgrade = database_upgrade_status();
+    if ($databaseUpgrade['recovery']) {
+        // Keep the same login and owner upgrade controls usable on older schema
+        // versions. Do not query catalog/payment columns which are not present.
+        $state = ['configured'=>true,'products'=>[],'categories'=>[],'shipping'=>[],
+            'settings'=>admin_settings(),'paymentMethods'=>[],'paymentSettings'=>null,
+            'currentUser'=>$safeUser,'users'=>[],
+            'roles'=>$safeUser ? [['id'=>$safeUser['roleId'],'name'=>'','permissions'=>$safeUser['permissions']]] : [],
+            'cart'=>[],'reservation'=>null,'orders'=>[],'movements'=>[],'tickets'=>[],
+            'permissions'=>permissions(),
+            'capabilities'=>['smsConfigured'=>sms_configured(),'paymentConfigured'=>false,
+                'temporaryLoginEnabled'=>temporary_login_enabled(),'categoriesReady'=>false,'databaseUpgradeRequired'=>true],
+            'metadata'=>['ordersLimit'=>500,'ticketsLimit'=>500,'ticketMessagesLimit'=>5000,'usersLimit'=>1000,'movementsLimit'=>1000]];
+        if ($user && admin_role_id($user) === 'owner') $state['databaseUpgrade'] = $databaseUpgrade;
+        return $state;
+    }
     $staffProducts = can('products.view') || can('products.edit') || can('inventory.view') || can('inventory.edit') || can('pos.create');
     $roles = (can('roles.edit') || can('users.edit')) ? admin_roles() : [];
     // Frontend compatibility: a user's own role is safe; never expose other users by default.
@@ -229,15 +245,17 @@ function bootstrap_data(): array
     $smsConfigured = sms_configured();
     $paymentMethods = payment_methods_public();
     $paymentConfigured = count(array_filter($paymentMethods,fn(array $method): bool => $method['available'])) > 0;
-    return ['configured'=>true,'products'=>admin_products($staffProducts),
+    $state = ['configured'=>true,'products'=>admin_products($staffProducts),
         'categories'=>categories_all(can('categories.view') || can('categories.edit') || can('products.edit')),
         'shipping'=>array_map('admin_shipping',admin_query('SELECT * FROM shipping_methods' . (can('shipping.edit') ? '' : ' WHERE enabled=1') . ' ORDER BY created_at,id')->fetchAll(PDO::FETCH_ASSOC)),
         'settings'=>admin_settings(),'paymentMethods'=>$paymentMethods,
         'paymentSettings'=>can('settings.edit',$user) ? payment_options() : null,
         'currentUser'=>$safeUser,'users'=>$users,'roles'=>$roles,
         'cart'=>$cart,'reservation'=>$reservation,'orders'=>admin_orders($user),'movements'=>$movements,'tickets'=>admin_tickets($user),
-        'permissions'=>permissions(),'capabilities'=>['smsConfigured'=>$smsConfigured,'paymentConfigured'=>$paymentConfigured,'temporaryLoginEnabled'=>temporary_login_enabled(),'categoriesReady'=>categories_ready()],
+        'permissions'=>permissions(),'capabilities'=>['smsConfigured'=>$smsConfigured,'paymentConfigured'=>$paymentConfigured,'temporaryLoginEnabled'=>temporary_login_enabled(),'categoriesReady'=>categories_ready(),'databaseUpgradeRequired'=>false],
         'metadata'=>['ordersLimit'=>500,'ticketsLimit'=>500,'ticketMessagesLimit'=>5000,'usersLimit'=>1000,'movementsLimit'=>1000]];
+    if ($user && admin_role_id($user) === 'owner') $state['databaseUpgrade'] = $databaseUpgrade;
+    return $state;
 }
 
 function admin_variant_locks(string $productId): array

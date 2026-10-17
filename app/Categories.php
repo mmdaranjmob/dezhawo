@@ -22,7 +22,7 @@ function categories_ready(): bool
 
 function categories_require_ready(): void
 {
-    if (!categories_ready()) app_error('برای مدیریت دسته‌بندی‌ها، فایل database/upgrade-20261016-categories.sql را در phpMyAdmin روی دیتابیس فروشگاه اجرا کنید.',503);
+    if (!categories_ready()) app_error('برای فعال‌شدن دسته‌بندی‌ها، مدیر اصلی باید دکمهٔ «ارتقای دیتابیس» بالای سایت را بزند.',503);
 }
 
 function categories_map(bool $lock = false): array

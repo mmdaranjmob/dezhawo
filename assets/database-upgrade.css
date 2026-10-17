@@ -1,0 +1,46 @@
+.database-upgrade {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:18px;
+  direction:rtl;
+  padding:18px clamp(18px,4vw,56px);
+  border-bottom:1px solid #dcc781;
+  background:#fff3c5;
+  color:#3c3219;
+  font:13px/1.8 var(--sans,Vazirmatn,Tahoma,sans-serif);
+  text-align:right;
+}
+.database-upgrade[hidden],.database-upgrade [hidden] {display:none!important}
+.database-upgrade-copy {min-width:0}
+.database-upgrade-title {display:block;font-size:14px;font-weight:750}
+.database-upgrade-message {margin:3px 0 0;overflow-wrap:anywhere}
+.database-upgrade-button {
+  flex:none;
+  min-height:44px;
+  border:1px solid #3c3219;
+  border-radius:11px;
+  padding:9px 20px;
+  background:#3c3219;
+  color:#fff8de;
+  font:inherit;
+  font-weight:700;
+  cursor:pointer;
+}
+.database-upgrade-button:hover:not(:disabled) {background:#5c4d26}
+.database-upgrade-button:focus-visible {outline:3px solid #2464ca;outline-offset:4px}
+.database-upgrade-button:disabled {opacity:.72;cursor:wait}
+.database-upgrade[data-state="error"] .database-upgrade-message {color:#9b2418;font-weight:600}
+.database-upgrade[data-state="success"] {background:#e8f4df;border-color:#b2c99e;color:#294421}
+.database-upgrade[data-state="success"] .database-upgrade-title {display:none}
+html[data-theme="dark"] .database-upgrade {background:#39331e;border-color:#675a2c;color:#fff0b8}
+html[data-theme="dark"] .database-upgrade-button {background:#f4d778;border-color:#f4d778;color:#2d2614}
+html[data-theme="dark"] .database-upgrade-button:hover:not(:disabled) {background:#ffe696}
+html[data-theme="dark"] .database-upgrade-button:focus-visible {outline-color:#9ac0ff}
+html[data-theme="dark"] .database-upgrade[data-state="error"] .database-upgrade-message {color:#ffb9a9}
+html[data-theme="dark"] .database-upgrade[data-state="success"] {background:#263b22;border-color:#41613a;color:#daf1cf}
+@media(max-width:560px) {
+  .database-upgrade {align-items:stretch;flex-direction:column;gap:12px;padding:16px 18px;font-size:12px}
+  .database-upgrade-title {font-size:13px}
+  .database-upgrade-button {align-self:flex-start;width:100%;min-height:46px}
+}

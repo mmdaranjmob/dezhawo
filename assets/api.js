@@ -3,7 +3,7 @@
   'use strict';
   const knownPermissions = ['products.view','products.edit','products.delete','categories.view','categories.edit','inventory.view','inventory.edit','pos.create','orders.view','orders.edit','finance.view','tickets.view','tickets.reply','shipping.edit','users.edit','roles.edit','appearance.edit','enamad.edit','settings.edit'];
   const defaults = {
-    configured: false, loading: true, products: [], categories: null, shipping: [], currentUser: null,
+    configured: false, loading: true, products: [], categories: null, shipping: [], currentUser: null, databaseUpgrade: null,
     users: [], roles: [], cart: [], reservation: null, orders: [], movements: [], tickets: [], paymentMethods: [], paymentSettings: null,
     capabilities: {smsConfigured: false, paymentConfigured: false, temporaryLoginEnabled: false},
     settings: {brand:'DEZHAWO', tagline:'دژاوو؛ انتخابی که می‌ماند.', footerText:'دژاوو؛ لوازم جانبی برای هر روز، انتخابی برای ماندن.'}
@@ -20,7 +20,7 @@
   }
   async function request(action, data, method = 'POST') {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 45000);
+    const timer = setTimeout(() => controller.abort(), action === 'database.upgrade' ? 120000 : 45000);
     try {
       const multipart = typeof FormData !== 'undefined' && data instanceof FormData;
       const response = await fetch('api.php?action=' + encodeURIComponent(action), {
@@ -102,6 +102,7 @@
     adjustStock:(productId,variantId,delta,reason) => mutate('inventory.adjust',{productId,variantId,delta,reason}),
     saveProduct:product => mutate('product.save',{product}),
     saveCategory:category => mutate('category.save',{category}), deleteCategory:id => mutate('category.delete',{id}),
+    upgradeDatabase:() => mutate('database.upgrade',{}),
     uploadProductImage:file => { const data=new FormData();data.append('image',file);return mutate('product.imageUpload',data); },
     setVariantEnabled:(productId,variantId,enabled) => mutate('variant.enabled',{productId,variantId,enabled}),
     setProductEnabled:(id,enabled) => mutate('product.enabled',{id,enabled}), deleteProduct:id => mutate('product.delete',{id}),

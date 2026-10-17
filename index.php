@@ -32,9 +32,11 @@ header('Referrer-Policy: same-origin');
 <link rel="stylesheet" href="assets/categories.css">
 <link rel="stylesheet" href="assets/category-admin.css">
 <link rel="stylesheet" href="assets/admin-forms.css">
+<link rel="stylesheet" href="assets/database-upgrade.css">
 </head>
 <body<?= $seoContext['productPage'] ? ' class="is-product-page" data-product-page="' . seo_escape((string)($seoContext['product']['id'] ?? '')) . '"' : '' ?>>
 <div class="runtime-status" id="runtimeStatus" role="status">در حال دریافت اطلاعات فروشگاه…</div>
+<section id="databaseUpgradeBanner" hidden aria-label="ارتقای فروشگاه"></section>
 <div id="storeView">
 <div class="announcement"><span data-icon="spark"></span><span id="noticeText">انتخاب‌های کوچک، برای روزهای بهتر</span><span>SMALL DETAILS. BETTER DAYS.</span></div>
 <header class="hdr" id="header" data-open="false">
@@ -65,6 +67,7 @@ header('Referrer-Policy: same-origin');
 
 
 <script src="assets/api.js" defer></script>
+<script src="assets/database-upgrade.js" defer></script>
 <script src="assets/category-admin.js" defer></script>
 <script src="assets/admin.js" defer></script>
 <script src="assets/store.js" defer></script>
