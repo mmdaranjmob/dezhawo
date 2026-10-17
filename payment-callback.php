@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/app/Assets.php';
 require_once __DIR__ . '/app/bootstrap.php';
 require_once __DIR__ . '/app/Auth.php';
 require_once __DIR__ . '/app/TemporaryLogin.php';
@@ -49,13 +50,13 @@ $title = $paid ? ($review ? 'پرداخت ثبت شد؛ نیاز به پیگیر
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#f5f4ef">
-<script src="assets/theme.js"></script>
+<script src="<?= asset_url('assets/theme.js') ?>"></script>
 <title>نتیجهٔ پرداخت | DEZHAWO</title>
 <style>
 @font-face{font-family:Vazirmatn;src:url('assets/font-1.woff2') format('woff2');font-weight:100 900;font-display:swap}
 *{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;padding:24px;background:#f5f4ef;color:#0f0f0e;font-family:Vazirmatn,system-ui,sans-serif;line-height:2}.receipt{width:min(100%,520px);background:white;border:1px solid #e3e1d9;border-radius:24px;padding:38px}.brand{font:900 25px Arial,sans-serif;direction:ltr;text-align:right;letter-spacing:-1px}.brand span{color:#ef5d44}.mark{margin:27px 0 18px;display:grid;place-items:center;width:60px;height:60px;border-radius:50%;background:<?= $paid && !$review ? '#e9f0e3' : '#fff1d4' ?>;font-size:27px}h1{font-size:24px;line-height:1.7;margin:0 0 15px}p{font-size:14px;color:#716f66;margin:0}.number{display:flex;justify-content:space-between;gap:14px;border:1px solid #e3e1d9;border-radius:12px;padding:13px 16px;margin-top:24px;font-size:12px}.number strong{direction:ltr;overflow-wrap:anywhere}.button{display:block;background:#0f0f0e;color:white;text-align:center;text-decoration:none;padding:13px;border-radius:13px;font-size:14px;margin-top:25px}.hint{font-size:11px;margin-top:16px}.test{padding:10px;border:1px solid #eadcb3;background:#fff7dc;border-radius:10px;font-size:11px;margin-top:16px}
 </style>
-<link rel="stylesheet" href="assets/theme.css">
+<link rel="stylesheet" href="<?= asset_url('assets/theme.css') ?>">
 </head>
 <body class="theme-page theme-receipt <?= $paid && !$review ? 'payment-success' : 'payment-warning' ?>"><main class="receipt">
 <div class="theme-page-header"><div class="brand">DEZHAWO<span>®</span></div><?php require __DIR__ . '/app/theme-control.php'; ?></div>

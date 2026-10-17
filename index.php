@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/app/Assets.php';
 require_once __DIR__ . '/app/Seo.php';
 $seoContext = $seoContext ?? seo_home_context();
 http_response_code($seoContext['status']);
@@ -8,6 +9,7 @@ if ($seoContext['status'] !== 200) {
     if ($seoContext['status'] === 503) header('Retry-After: 300');
 }
 header('Content-Type: text/html; charset=utf-8');
+header('Cache-Control: no-cache');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: same-origin');
 ?>
@@ -19,20 +21,20 @@ header('Referrer-Policy: same-origin');
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f5f4ef">
-<script src="assets/theme.js"></script>
+<script src="<?= asset_url('assets/theme.js') ?>"></script>
 <?php seo_head($seoContext); ?>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Crect width='80' height='80' rx='22' fill='%23ef5d44'/%3E%3Ctext x='21' y='58' font-family='Arial' font-weight='900' font-size='52' fill='%230f0f0e'%3ED%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="assets/app.css">
-<link rel="stylesheet" href="assets/theme.css">
-<link rel="stylesheet" href="assets/installment.css">
-<link rel="stylesheet" href="assets/payments.css">
-<link rel="stylesheet" href="assets/product-images.css">
-<link rel="stylesheet" href="assets/hero-products.css">
-<link rel="stylesheet" href="assets/product-page.css">
-<link rel="stylesheet" href="assets/categories.css">
-<link rel="stylesheet" href="assets/category-admin.css">
-<link rel="stylesheet" href="assets/admin-forms.css">
-<link rel="stylesheet" href="assets/database-upgrade.css">
+<link rel="stylesheet" href="<?= asset_url('assets/app.css') ?>">
+<link rel="stylesheet" href="<?= asset_url('assets/theme.css') ?>">
+<link rel="stylesheet" href="<?= asset_url('assets/installment.css') ?>">
+<link rel="stylesheet" href="<?= asset_url('assets/payments.css') ?>">
+<link rel="stylesheet" href="<?= asset_url('assets/product-images.css') ?>">
+<link rel="stylesheet" href="<?= asset_url('assets/hero-products.css') ?>">
+<link rel="stylesheet" href="<?= asset_url('assets/product-page.css') ?>">
+<link rel="stylesheet" href="<?= asset_url('assets/categories.css') ?>">
+<link rel="stylesheet" href="<?= asset_url('assets/category-admin.css') ?>">
+<link rel="stylesheet" href="<?= asset_url('assets/admin-forms.css') ?>">
+<link rel="stylesheet" href="<?= asset_url('assets/database-upgrade.css') ?>">
 </head>
 <body<?= $seoContext['productPage'] ? ' class="is-product-page" data-product-page="' . seo_escape((string)($seoContext['product']['id'] ?? '')) . '"' : '' ?>>
 <div class="runtime-status" id="runtimeStatus" role="status">در حال دریافت اطلاعات فروشگاه…</div>
@@ -66,10 +68,10 @@ header('Referrer-Policy: same-origin');
 
 
 
-<script src="assets/api.js" defer></script>
-<script src="assets/database-upgrade.js" defer></script>
-<script src="assets/category-admin.js" defer></script>
-<script src="assets/admin.js" defer></script>
-<script src="assets/store.js" defer></script>
+<script src="<?= asset_url('assets/api.js') ?>" defer></script>
+<script src="<?= asset_url('assets/database-upgrade.js') ?>" defer></script>
+<script src="<?= asset_url('assets/category-admin.js') ?>" defer></script>
+<script src="<?= asset_url('assets/admin.js') ?>" defer></script>
+<script src="<?= asset_url('assets/store.js') ?>" defer></script>
 </body>
 </html>
